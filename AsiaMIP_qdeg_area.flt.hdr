@@ -1,6 +1,4 @@
 ENVI
-description = {
-  File Imported into ENVI.}
 samples = 480
 lines   = 360
 bands   = 1

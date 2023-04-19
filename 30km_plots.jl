@@ -13,35 +13,38 @@ end
 
 # ╔═╡ b61d97ac-d2dd-43bb-b152-9d9263b28617
 begin
-	filename = "./MOD11A2.061/MONTH/MOD11A2.061.LST_Day.GLOBAL.30km.2021.degC.mon.bsq.flt"
+	filename = "./modis_data/MOD11A2.061/MONTH/MOD11A2.061.LST_Day.GLOBAL.30km.2021.degC.mon.bsq.flt"
 	
-	mask_file = "./AsiaMIP_qdeg_area.flt"
+	areas_file = "./AsiaMIP_qdeg_area.flt"
+
+	mask_file = "./AsiaMIP_qdeg_gosat2.byt"
 end
 
 # ╔═╡ 8c5fb67e-c237-4337-a12b-21a60932cf4f
 begin
-	A = RasterStack(filename; layersfrom=Band)
-	M = Raster(mask_file)
+	A = Raster(filename)
+	areas = Raster(areas_file)
+	masks = Raster(mask_file)
+	A_cropped = A[X(59.999 .. 180), Y(-10 .. 80)]
+	A_mask = mask(A_cropped; with=masks)
+	plot(A_mask)
 end
 
 # ╔═╡ 91c6c9c6-5038-48ae-806b-b7be9bd6612c
 begin
 	layout = (3, 4)
-	p = plot(A, size=(1200, 1000), layout = layout)
+	p = plot(A_cropped, size=(1200, 1000), layout = layout)
 	for i in 1:length(p)
 		plot!(p, subplot=i, linewidth=0.6)
 	end
 	p
 end
 
-# ╔═╡ 88f47b6f-8bec-43b3-bfc0-f7849508b4ce
-minimum(A)
-
 # ╔═╡ e9aafe47-3715-4459-8232-20cf56f44556
 begin
 	#create mask
 	asia_mask = missingmask(M)
-	asia_masked = mask!(A, with=asia_mask)
+	asia_masked = mask!(A_cropped, with=asia_mask)
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -1343,7 +1346,6 @@ version = "1.4.1+0"
 # ╠═b61d97ac-d2dd-43bb-b152-9d9263b28617
 # ╠═8c5fb67e-c237-4337-a12b-21a60932cf4f
 # ╠═91c6c9c6-5038-48ae-806b-b7be9bd6612c
-# ╠═88f47b6f-8bec-43b3-bfc0-f7849508b4ce
 # ╠═e9aafe47-3715-4459-8232-20cf56f44556
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
