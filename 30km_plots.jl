@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.19
+# v0.19.24
 
 using Markdown
 using InteractiveUtils
@@ -14,6 +14,7 @@ end
 # ╔═╡ b61d97ac-d2dd-43bb-b152-9d9263b28617
 begin
 	filename = "./modis_data/MOD11A2.061/MONTH/MOD11A2.061.LST_Day.GLOBAL.30km.2021.degC.mon.bsq.flt"
+	nc_file = "./test.nc"
 	
 	areas_file = "./AsiaMIP_qdeg_area.flt"
 
@@ -23,28 +24,40 @@ end
 # ╔═╡ 8c5fb67e-c237-4337-a12b-21a60932cf4f
 begin
 	A = Raster(filename)
+	nc = Raster(nc_file)
 	areas = Raster(areas_file)
 	masks = Raster(mask_file)
-	A_cropped = A[X(59.999 .. 180), Y(-10 .. 80)]
-	A_mask = mask(A_cropped; with=masks)
-	plot(A_mask)
+	A_cropped = nc[X(60 .. 180), Y(-10 .. 80)]
+	# A_mask = mask(A_cropped; with=masks)
+	A_cropped
+end
+
+# ╔═╡ ebe0676c-b9d0-49d6-80f1-c166b2e6dfdf
+begin
+	B = Raster(WorldClim{BioClim}, 5)
+	B_cropped = B[X(60 .. 180), Y(-10 .. 80)]
+	B
 end
 
 # ╔═╡ 91c6c9c6-5038-48ae-806b-b7be9bd6612c
-begin
-	layout = (3, 4)
-	p = plot(A_cropped, size=(1200, 1000), layout = layout)
-	for i in 1:length(p)
-		plot!(p, subplot=i, linewidth=0.6)
-	end
-	p
-end
+# begin
+# 	layout = (3, 4)
+# 	p = plot(A_cropped, size=(1200, 1000), layout = layout)
+# 	for i in 1:length(p)
+# 		plot!(p, subplot=i, linewidth=0.6)
+# 	end
+# 	p
+# end
 
 # ╔═╡ e9aafe47-3715-4459-8232-20cf56f44556
 begin
-	#create mask
-	asia_mask = missingmask(M)
-	asia_masked = mask!(A_cropped, with=asia_mask)
+	data = Array{Float32}(undef, (1440, 720, 12))
+	read!(filename, data)
+	data = convert(Array{Union{Missing, Float32}}, data)
+	asia = view(data, 961:1440, 41:400, :)
+	typeof(data)
+	replace!(asia, -9999 => missing)
+	mean(skipmissing(asia[:,:,7]))
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -1345,6 +1358,7 @@ version = "1.4.1+0"
 # ╠═2f7e4b12-dd14-11ed-27af-f35f5762cd71
 # ╠═b61d97ac-d2dd-43bb-b152-9d9263b28617
 # ╠═8c5fb67e-c237-4337-a12b-21a60932cf4f
+# ╠═ebe0676c-b9d0-49d6-80f1-c166b2e6dfdf
 # ╠═91c6c9c6-5038-48ae-806b-b7be9bd6612c
 # ╠═e9aafe47-3715-4459-8232-20cf56f44556
 # ╟─00000000-0000-0000-0000-000000000001
