@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.24
+# v0.19.25
 
 using Markdown
 using InteractiveUtils
@@ -7,7 +7,6 @@ using InteractiveUtils
 # ╔═╡ 2f7e4b12-dd14-11ed-27af-f35f5762cd71
 begin
 	using Printf
-	# using Plots
 	using Statistics
 	using CairoMakie
 	using Dates
@@ -32,7 +31,6 @@ function mean_temp(filepath, weights)
 	typeof(data)
 	replace!(asia, -9999 => missing)
 	result = weights .* asia
-	# monthly_temps = zeros(Float32, 0)
 	monthly_temps = Vector{Float32}()
 
 	for i = 1:size(result)[3]
@@ -75,36 +73,19 @@ function main(create_weights, mean_temp)
 		
 	end
 
+	print(cor(mean(temps06), mean(temps61)))
 	x = range(1, 12)
-	
-	# PLOTS JL CODE
-	
-	# plot(x, temps61[1], linecolor="gray", linealpha=0.2, labels="6 and 6.1")
-	# plot!(x, temps61[2:16], linecolor="gray", linealpha=0.2, label="")
-	
-	# plot!(x, temps06, linecolor="gray", linealpha=0.2, label="")
-	
-	# plot!(x, temps05[1], linecolor="#337eff", linealpha=0.4, label="5")
-	# plot!(x, temps05[2:16], linecolor="#337eff", linealpha=0.4, label="")
-
-	# xlabel!("Month")
-	# ylabel!("°C")
-
-	# MAKIE CODE
-	temps61 = mapreduce(permutedims, vcat, temps61)
-	temps06 = mapreduce(permutedims, vcat, temps06)
-	temps05 = mapreduce(permutedims, vcat, temps05)
 	
 	f = Figure()
 	ax = Axis(f[1, 1], xlabel="Month", ylabel="°C", xticks=1:12, xautolimitmargin=(0,0))
-	plot61 = series!(ax, x, temps61, solid_color=("gray", 0.2))
 	
-	plot05 = series!(ax, x, temps05, solid_color=("gray", 0.2))
-	plot06 = series!(ax, x, temps06, solid_color=("#4682b4", 0.3))
+	plot05 = lines!(ax, x, mean(temps05), linewidth=3)
+	plot06 = lines!(ax, x, mean(temps06), linewidth=3)
+	plot61 = lines!(ax, x, mean(temps61), linewidth=4, linestyle=:dash)
 
 	Legend(f[1, 2],
-	    [[plot05, plot61], plot06],
-	    ["v 5/6.1", "v 6"])
+	    [plot05, plot06, plot61],
+	    ["v5", "v6", "v6.1"])
 	
 	f
 	
@@ -131,7 +112,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.5"
 manifest_format = "2.0"
-project_hash = "d4020d575b9ff60764ddb918c8d8d22d285ef2dc"
+project_hash = "2f7f0e4082dd48441f02a592adeb8104c0e15396"
 
 [[deps.AbstractFFTs]]
 deps = ["ChainRulesCore", "LinearAlgebra"]
@@ -768,9 +749,9 @@ version = "1.2.0"
 
 [[deps.MathTeXEngine]]
 deps = ["AbstractTrees", "Automa", "DataStructures", "FreeTypeAbstraction", "GeometryBasics", "LaTeXStrings", "REPL", "RelocatableFolders", "Test", "UnicodeFun"]
-git-tree-sha1 = "8f52dbaa1351ce4cb847d95568cb29e62a307d93"
+git-tree-sha1 = "64890e1e8087b71c03bd6b8af99b49c805b2a78d"
 uuid = "0a4f8689-d25c-4efe-a92b-7142dfc1aa53"
-version = "0.5.6"
+version = "0.5.5"
 
 [[deps.MbedTLS_jll]]
 deps = ["Artifacts", "Libdl"]
