@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.25
+# v0.19.24
 
 using Markdown
 using InteractiveUtils
@@ -10,6 +10,12 @@ begin
 	using Statistics
 	using CairoMakie
 	using Dates
+end
+
+# ╔═╡ d427ca05-ee81-4503-95b0-f167b2c91ed8
+begin
+	areas_file = "./AsiaMIP_qdeg_area.flt"
+	mask_file = "./AsiaMIP_qdeg_gosat2.byt"
 end
 
 # ╔═╡ 27efb685-9529-4e39-886d-ad4fe51cd042
@@ -41,9 +47,6 @@ end
 
 # ╔═╡ 645b4758-7119-4764-bea5-b228e8f7dd45
 function main(create_weights, mean_temp)
-	areas_file = "./AsiaMIP_qdeg_area.flt"
-
-	mask_file = "./AsiaMIP_qdeg_gosat2.byt"
 
 	weights = create_weights(areas_file)
 
@@ -72,22 +75,65 @@ function main(create_weights, mean_temp)
 		push!(temps05, mean_temp(filepath05, weights))
 		
 	end
-
-	print(cor(mean(temps06), mean(temps61)))
-	x = range(1, 12)
 	
-	f = Figure()
-	ax = Axis(f[1, 1], xlabel="Month", ylabel="°C", xticks=1:12, xautolimitmargin=(0,0))
+	dates = collect(Date(2000):Year(1):Date(2015))
+	dates = Dates.format.(dates, "'yy")
 	
-	plot05 = lines!(ax, x, mean(temps05), linewidth=3)
-	plot06 = lines!(ax, x, mean(temps06), linewidth=3)
-	plot61 = lines!(ax, x, mean(temps61), linewidth=4, linestyle=:dash)
+	months = range(1, 12)
+	years = range(2000, 2015)
+	
+	f = Figure(backgroundcolor = RGBf(0.98, 0.98, 0.98), resolution = (1600, 1200))
+	f_seas = Figure(resolution = (1600, 1200))
+	
+	ax_monthly_ave = Axis(f[1, 1], xlabel="Month", ylabel="°C", xticks=1:12, xautolimitmargin=(0,0))
 
+	ax_yearly_cons = Axis(f[2, 1], xlabel="Year", ylabel="°C", xticks=(1:12:192, dates), xautolimitmargin=(0,0))
+
+	ax_yearly_ave = Axis(f[3, 1], xlabel="Year", ylabel="°C", xticks=(years[1:end]), xautolimitmargin=(0,0))
+
+	ax_win_ave = Axis(f_seas[1, 1], xticks=(years[1:end]), xautolimitmargin=(0,0), 
+	title="Jan-Mar")
+	ax_spr_ave = Axis(f_seas[1, 2], xticks=(years[1:end]), xautolimitmargin=(0,0), title="Apr-Jun")
+	ax_sum_ave = Axis(f_seas[2, 1], xlabel="Year", ylabel="°C", xticks=(years[1:end]), xautolimitmargin=(0,0), title="Jul-Sep")
+	ax_fal_ave = Axis(f_seas[2, 2], xticks=(years[1:end]), xautolimitmargin=(0,0), title="Oct-Dec")
+	
+	plot05 = lines!(ax_monthly_ave, months, mean(temps05), linewidth=3)
+	plot06 = lines!(ax_monthly_ave, months, mean(temps06), linewidth=3)
+	plot61 = lines!(ax_monthly_ave, months, mean(temps61), linewidth=4, linestyle=:dash)
+
+	plot05_yearly_cons = lines!(ax_yearly_cons, 1:192, reduce(vcat, temps05), linewidth=3)
+	plot06_yearly_cons = lines!(ax_yearly_cons, 1:192, reduce(vcat, temps06), linewidth=3)
+	plot61_yearly_cons = lines!(ax_yearly_cons, 1:192, reduce(vcat, temps61), linewidth=4, linestyle=:dash)
+
+	plot05_yearly_ave = lines!(ax_yearly_ave, years, mean.(temps05), linewidth=3)
+	plot06_yearly_ave = lines!(ax_yearly_ave, years, mean.(temps06), linewidth=3)
+	plot61_yearly_ave = lines!(ax_yearly_ave, years, mean.(temps61), linewidth=4, linestyle=:dash)
+	
+	plot05_seas_ave = lines!(ax_win_ave, years, mean.(map(x -> x[1:3],temps05)), label="v5")
+	plot06_seas_ave = lines!(ax_win_ave, years, mean.(map(x -> x[1:3],temps06)), label="v6")
+	plot61_seas_ave = lines!(ax_win_ave, years, mean.(map(x -> x[1:3],temps61)), linestyle=:dash, label="v6.1")
+	
+	plot05_seas_ave = lines!(ax_spr_ave, years, mean.(map(x -> x[4:6],temps05)))
+	plot06_seas_ave = lines!(ax_spr_ave, years, mean.(map(x -> x[4:6],temps06)))
+	plot61_seas_ave = lines!(ax_spr_ave, years, mean.(map(x -> x[4:6],temps61)), linestyle=:dash)
+
+	plot05_seas_ave = lines!(ax_sum_ave, years, mean.(map(x -> x[7:9],temps05)))
+	plot06_seas_ave = lines!(ax_sum_ave, years, mean.(map(x -> x[7:9],temps06)))
+	plot61_seas_ave = lines!(ax_sum_ave, years, mean.(map(x -> x[7:9],temps61)), linestyle=:dash)
+
+	plot05_seas_ave = lines!(ax_fal_ave, years, mean.(map(x -> x[10:12],temps05)))
+	plot06_seas_ave = lines!(ax_fal_ave, years, mean.(map(x -> x[10:12],temps06)))
+	plot61_seas_ave = lines!(ax_fal_ave, years, mean.(map(x -> x[10:12],temps61)), linestyle=:dash)
+
+	axislegend(ax_win_ave)
+	
 	Legend(f[1, 2],
-	    [plot05, plot06, plot61],
+	    [[plot05, plot05_yearly_cons,plot05_yearly_ave], 
+			[plot06, plot06_yearly_cons, plot06_yearly_ave], 
+			[plot61, plot61_yearly_cons, plot61_yearly_ave]],
 	    ["v5", "v6", "v6.1"])
 	
-	f
+	f_seas
 	
 end
 
@@ -1367,6 +1413,7 @@ version = "3.5.0+0"
 
 # ╔═╡ Cell order:
 # ╠═2f7e4b12-dd14-11ed-27af-f35f5762cd71
+# ╠═d427ca05-ee81-4503-95b0-f167b2c91ed8
 # ╠═27efb685-9529-4e39-886d-ad4fe51cd042
 # ╠═e9aafe47-3715-4459-8232-20cf56f44556
 # ╠═645b4758-7119-4764-bea5-b228e8f7dd45
