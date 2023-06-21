@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.26
+# v0.19.25
 
 using Markdown
 using InteractiveUtils
@@ -51,12 +51,13 @@ function main(create_weights, mean_temp)
 
 	weights = create_weights(areas_file)
 
+	# Not the ideal way to make the data structure
 	temps61 = Vector{Vector{Float32}}()
 	temps06 = Vector{Vector{Float32}}()
 	temps05 = Vector{Vector{Float32}}()
+	lst_vectors = [temps05, temps06, temps61]
 
-	lst_arrays = Array{Vector{Vector{Float32}}}(undef, 3, 1)
-	
+	# For each year
 	for i = 0:15
 
 		if i < 10
@@ -66,23 +67,13 @@ function main(create_weights, mean_temp)
 			string(i)
 		end
 
-		for c in collections
+		# For each version in each year
+		for (ci, c) in enumerate(collections)
 			filename = 
-			@sprintf("MOD11A2.%s.LST_Day.GLOBAL.30km.20%s.decC.mon.bsq.flt", c, i)
+			@sprintf("MOD11A2.%s.LST_Day.GLOBAL.30km.20%s.degC.mon.bsq.flt", c, i)
 			filepath = @sprintf("./modis_data/MOD11A2.%s/MONTH/%s", c, filename)
+			push!(lst_vectors[ci], mean_temp(filepath, weights))
 		end
-		filename61 = @sprintf("MOD11A2.061.LST_Day.GLOBAL.30km.20%s.degC.mon.bsq.flt", i)
-		filename06 = @sprintf("MOD11A2.006.LST_Day.GLOBAL.30km.20%s.degC.mon.bsq.flt", i)
-		filename05 = @sprintf("MOD11A2.005.LST_Day.GLOBAL.30km.20%s.degC.mon.bsq.flt", i)
-
-		filepath61 = "./modis_data/MOD11A2.061/MONTH/$(filename61)"
-		filepath06 = "./modis_data/MOD11A2.006/MONTH/$(filename06)"
-		filepath05 = "./modis_data/MOD11A2.005/MONTH/$(filename05)"
-
-		push!(temps61, mean_temp(filepath61, weights))
-		push!(temps06, mean_temp(filepath06, weights))
-		push!(temps05, mean_temp(filepath05, weights))
-		
 	end
 	
 	dates = collect(Date(2000):Year(1):Date(2015))
@@ -99,12 +90,20 @@ function main(create_weights, mean_temp)
 	ax_yearly_cons = Axis(f[2, 1], xlabel="Year", ylabel="°C", xticks=(1:12:192, dates), xautolimitmargin=(0,0))
 
 	ax_yearly_ave = Axis(f[3, 1], xlabel="Year", ylabel="°C", xticks=(years[1:end]), xautolimitmargin=(0,0))
-
+	
 	ax_win_ave = Axis(f_seas[1, 1], xticks=(years[1:end]), xautolimitmargin=(0,0), 
 	title="Jan-Mar")
 	ax_spr_ave = Axis(f_seas[1, 2], xticks=(years[1:end]), xautolimitmargin=(0,0), title="Apr-Jun")
 	ax_sum_ave = Axis(f_seas[2, 1], xlabel="Year", ylabel="°C", xticks=(years[1:end]), xautolimitmargin=(0,0), title="Jul-Sep")
 	ax_fal_ave = Axis(f_seas[2, 2], xticks=(years[1:end]), xautolimitmargin=(0,0), title="Oct-Dec")
+
+	axes_array = [ax_win_ave, ax_spr_ave, ax_sum_ave, ax_fal_ave]
+
+	for (ai, axis) in enumerate(axes_array)
+		for (ci, c) in enumerate(collections)
+			lines!(axes_array[ai], years, mean.(map(x -> x[])))
+		end
+	end
 	
 	plot05 = lines!(ax_monthly_ave, months, mean(temps05), linewidth=3)
 	plot06 = lines!(ax_monthly_ave, months, mean(temps06), linewidth=3)
@@ -118,28 +117,30 @@ function main(create_weights, mean_temp)
 	plot06_yearly_ave = lines!(ax_yearly_ave, years, mean.(temps06), linewidth=3)
 	plot61_yearly_ave = lines!(ax_yearly_ave, years, mean.(temps61), linewidth=4, linestyle=:dash)
 	
-	plot05_seas_ave = lines!(ax_win_ave, years, mean.(map(x -> x[1:3],temps05)), label="v5")
-	plot06_seas_ave = lines!(ax_win_ave, years, mean.(map(x -> x[1:3],temps06)), label="v6")
-	plot61_seas_ave = lines!(ax_win_ave, years, mean.(map(x -> x[1:3],temps61)), linestyle=:dash, label="v6.1")
+	lines!(ax_win_ave, years, mean.(map(x -> x[1:3],temps05)), label="v5")
+	lines!(ax_win_ave, years, mean.(map(x -> x[1:3],temps06)), label="v6")
+	lines!(ax_win_ave, years, mean.(map(x -> x[1:3],temps61)), linestyle=:dash, label="v6.1")
 	
-	plot05_seas_ave = lines!(ax_spr_ave, years, mean.(map(x -> x[4:6],temps05)))
-	plot06_seas_ave = lines!(ax_spr_ave, years, mean.(map(x -> x[4:6],temps06)))
-	plot61_seas_ave = lines!(ax_spr_ave, years, mean.(map(x -> x[4:6],temps61)), linestyle=:dash)
+	lines!(ax_spr_ave, years, mean.(map(x -> x[4:6],temps05)))
+	lines!(ax_spr_ave, years, mean.(map(x -> x[4:6],temps06)))
+	lines!(ax_spr_ave, years, mean.(map(x -> x[4:6],temps61)), linestyle=:dash)
 
-	plot05_seas_ave = lines!(ax_sum_ave, years, mean.(map(x -> x[7:9],temps05)))
-	plot06_seas_ave = lines!(ax_sum_ave, years, mean.(map(x -> x[7:9],temps06)))
-	plot61_seas_ave = lines!(ax_sum_ave, years, mean.(map(x -> x[7:9],temps61)), linestyle=:dash)
+	lines!(ax_sum_ave, years, mean.(map(x -> x[7:9],temps05)))
+	lines!(ax_sum_ave, years, mean.(map(x -> x[7:9],temps06)))
+	lines!(ax_sum_ave, years, mean.(map(x -> x[7:9],temps61)), linestyle=:dash)
 
-	plot05_seas_ave = lines!(ax_fal_ave, years, mean.(map(x -> x[10:12],temps05)))
-	plot06_seas_ave = lines!(ax_fal_ave, years, mean.(map(x -> x[10:12],temps06)))
-	plot61_seas_ave = lines!(ax_fal_ave, years, mean.(map(x -> x[10:12],temps61)), linestyle=:dash)
+	lines!(ax_fal_ave, years, mean.(map(x -> x[10:12],temps05)))
+	lines!(ax_fal_ave, years, mean.(map(x -> x[10:12],temps06)))
+	lines!(ax_fal_ave, years, mean.(map(x -> x[10:12],temps61)), linestyle=:dash)
 
 	axislegend(ax_win_ave)
 	
 	Legend(f[1, 2],
-	    [[plot05, plot05_yearly_cons,plot05_yearly_ave], 
-			[plot06, plot06_yearly_cons, plot06_yearly_ave], 
-			[plot61, plot61_yearly_cons, plot61_yearly_ave]],
+	    [
+			[plot05, plot05_yearly_cons, plot05_yearly_ave],
+			[plot06, plot06_yearly_cons, plot06_yearly_ave],
+			[plot61, plot61_yearly_cons, plot61_yearly_ave],
+		],
 	    ["v5", "v6", "v6.1"])
 	
 	f_seas
@@ -165,19 +166,15 @@ CairoMakie = "~0.10.4"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.1"
+julia_version = "1.8.5"
 manifest_format = "2.0"
 project_hash = "2f7f0e4082dd48441f02a592adeb8104c0e15396"
 
 [[deps.AbstractFFTs]]
-deps = ["LinearAlgebra"]
+deps = ["ChainRulesCore", "LinearAlgebra"]
 git-tree-sha1 = "16b6dbc4cf7caee4e1e75c49485ec67b667098a0"
 uuid = "621f4979-c628-5d54-868e-fcf4e3e8185c"
 version = "1.3.1"
-weakdeps = ["ChainRulesCore"]
-
-    [deps.AbstractFFTs.extensions]
-    AbstractFFTsChainRulesCoreExt = "ChainRulesCore"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "faa260e4cb5aba097a73fab382dd4b5819d8ec8c"
@@ -189,10 +186,6 @@ deps = ["LinearAlgebra", "Requires"]
 git-tree-sha1 = "cc37d689f599e8df4f464b2fa3870ff7db7492ef"
 uuid = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 version = "3.6.1"
-weakdeps = ["StaticArrays"]
-
-    [deps.Adapt.extensions]
-    AdaptStaticArraysExt = "StaticArrays"
 
 [[deps.Animations]]
 deps = ["Colors"]
@@ -273,14 +266,10 @@ uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 version = "1.15.7"
 
 [[deps.ChangesOfVariables]]
-deps = ["LinearAlgebra", "Test"]
+deps = ["ChainRulesCore", "LinearAlgebra", "Test"]
 git-tree-sha1 = "485193efd2176b88e6622a39a246f8c5b600e74e"
 uuid = "9e997f8a-9a97-42d5-a9f1-ce6bfc15e2c0"
 version = "0.1.6"
-weakdeps = ["ChainRulesCore"]
-
-    [deps.ChangesOfVariables.extensions]
-    ChangesOfVariablesChainRulesCoreExt = "ChainRulesCore"
 
 [[deps.ColorBrewer]]
 deps = ["Colors", "JSON", "Test"]
@@ -313,30 +302,21 @@ uuid = "5ae59095-9a9b-59fe-a467-6f913c188581"
 version = "0.12.10"
 
 [[deps.Compat]]
-deps = ["UUIDs"]
+deps = ["Dates", "LinearAlgebra", "UUIDs"]
 git-tree-sha1 = "7a60c856b9fa189eb34f5f8a6f6b5529b7942957"
 uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
 version = "4.6.1"
-weakdeps = ["Dates", "LinearAlgebra"]
-
-    [deps.Compat.extensions]
-    CompatLinearAlgebraExt = "LinearAlgebra"
 
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "1.0.2+0"
+version = "1.0.1+0"
 
 [[deps.ConstructionBase]]
 deps = ["LinearAlgebra"]
 git-tree-sha1 = "89a9db8d28102b094992472d333674bd1a83ce2a"
 uuid = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
 version = "1.5.1"
-weakdeps = ["IntervalSets", "StaticArrays"]
-
-    [deps.ConstructionBase.extensions]
-    IntervalSetsExt = "IntervalSets"
-    StaticArraysExt = "StaticArrays"
 
 [[deps.Contour]]
 git-tree-sha1 = "d05d9e7b7aedff4e5b51a029dced05cfb6125781"
@@ -374,15 +354,10 @@ deps = ["Random", "Serialization", "Sockets"]
 uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
 [[deps.Distributions]]
-deps = ["FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SparseArrays", "SpecialFunctions", "Statistics", "StatsBase", "StatsFuns", "Test"]
+deps = ["ChainRulesCore", "DensityInterface", "FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SparseArrays", "SpecialFunctions", "Statistics", "StatsBase", "StatsFuns", "Test"]
 git-tree-sha1 = "13027f188d26206b9e7b863036f87d2f2e7d013a"
 uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
 version = "0.25.87"
-weakdeps = ["ChainRulesCore", "DensityInterface"]
-
-    [deps.Distributions.extensions]
-    DistributionsChainRulesCoreExt = "ChainRulesCore"
-    DistributionsDensityInterfaceExt = "DensityInterface"
 
 [[deps.DocStringExtensions]]
 deps = ["LibGit2"]
@@ -778,20 +753,14 @@ uuid = "38a345b3-de98-5d2b-a5d3-14cd9215e700"
 version = "2.36.0+0"
 
 [[deps.LinearAlgebra]]
-deps = ["Libdl", "OpenBLAS_jll", "libblastrampoline_jll"]
+deps = ["Libdl", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
 [[deps.LogExpFunctions]]
-deps = ["DocStringExtensions", "IrrationalConstants", "LinearAlgebra"]
+deps = ["ChainRulesCore", "ChangesOfVariables", "DocStringExtensions", "InverseFunctions", "IrrationalConstants", "LinearAlgebra"]
 git-tree-sha1 = "0a1b7c2863e44523180fdb3146534e265a91870b"
 uuid = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
 version = "0.3.23"
-weakdeps = ["ChainRulesCore", "ChangesOfVariables", "InverseFunctions"]
-
-    [deps.LogExpFunctions.extensions]
-    LogExpFunctionsChainRulesCoreExt = "ChainRulesCore"
-    LogExpFunctionsChangesOfVariablesExt = "ChangesOfVariables"
-    LogExpFunctionsInverseFunctionsExt = "InverseFunctions"
 
 [[deps.Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
@@ -843,7 +812,7 @@ version = "0.5.5"
 [[deps.MbedTLS_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
-version = "2.28.2+0"
+version = "2.28.0+0"
 
 [[deps.MiniQhull]]
 deps = ["QhullMiniWrapper_jll"]
@@ -868,7 +837,7 @@ version = "0.3.4"
 
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
-version = "2022.10.11"
+version = "2022.2.1"
 
 [[deps.NaNMath]]
 deps = ["OpenLibm_jll"]
@@ -906,7 +875,7 @@ version = "1.3.5+1"
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
-version = "0.3.21+4"
+version = "0.3.20+0"
 
 [[deps.OpenEXR]]
 deps = ["Colors", "FileIO", "OpenEXR_jll"]
@@ -951,7 +920,7 @@ version = "1.6.0"
 [[deps.PCRE2_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "efcefdf7-47ab-520b-bdef-62a2eaa19f15"
-version = "10.42.0+0"
+version = "10.40.0+0"
 
 [[deps.PDMats]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse"]
@@ -996,9 +965,9 @@ uuid = "30392449-352a-5448-841d-b1acce4e97dc"
 version = "0.40.1+0"
 
 [[deps.Pkg]]
-deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]
+deps = ["Artifacts", "Dates", "Downloads", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-version = "1.9.0"
+version = "1.8.0"
 
 [[deps.PkgVersion]]
 deps = ["Pkg"]
@@ -1180,18 +1149,14 @@ uuid = "a2af1166-a08f-5f64-846c-94a0d3cef48c"
 version = "1.1.0"
 
 [[deps.SparseArrays]]
-deps = ["Libdl", "LinearAlgebra", "Random", "Serialization", "SuiteSparse_jll"]
+deps = ["LinearAlgebra", "Random"]
 uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [[deps.SpecialFunctions]]
-deps = ["IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]
+deps = ["ChainRulesCore", "IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]
 git-tree-sha1 = "ef28127915f4229c971eb43f3fc075dd3fe91880"
 uuid = "276daf66-3868-5448-9aa4-cd146d93841b"
 version = "2.2.0"
-weakdeps = ["ChainRulesCore"]
-
-    [deps.SpecialFunctions.extensions]
-    SpecialFunctionsChainRulesCoreExt = "ChainRulesCore"
 
 [[deps.StableHashTraits]]
 deps = ["CRC32c", "Compat", "Dates", "SHA", "Tables", "TupleTools", "UUIDs"]
@@ -1219,7 +1184,6 @@ version = "1.4.0"
 [[deps.Statistics]]
 deps = ["LinearAlgebra", "SparseArrays"]
 uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
-version = "1.9.0"
 
 [[deps.StatsAPI]]
 deps = ["LinearAlgebra"]
@@ -1234,15 +1198,10 @@ uuid = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 version = "0.33.21"
 
 [[deps.StatsFuns]]
-deps = ["HypergeometricFunctions", "IrrationalConstants", "LogExpFunctions", "Reexport", "Rmath", "SpecialFunctions"]
+deps = ["ChainRulesCore", "HypergeometricFunctions", "InverseFunctions", "IrrationalConstants", "LogExpFunctions", "Reexport", "Rmath", "SpecialFunctions"]
 git-tree-sha1 = "f625d686d5a88bcd2b15cd81f18f98186fdc0c9a"
 uuid = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
 version = "1.3.0"
-weakdeps = ["ChainRulesCore", "InverseFunctions"]
-
-    [deps.StatsFuns.extensions]
-    StatsFunsChainRulesCoreExt = "ChainRulesCore"
-    StatsFunsInverseFunctionsExt = "InverseFunctions"
 
 [[deps.StructArrays]]
 deps = ["Adapt", "DataAPI", "GPUArraysCore", "StaticArraysCore", "Tables"]
@@ -1254,15 +1213,10 @@ version = "0.6.15"
 deps = ["Libdl", "LinearAlgebra", "Serialization", "SparseArrays"]
 uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
 
-[[deps.SuiteSparse_jll]]
-deps = ["Artifacts", "Libdl", "Pkg", "libblastrampoline_jll"]
-uuid = "bea87d4a-7f5b-5778-9afe-8cc45184846c"
-version = "5.10.1+6"
-
 [[deps.TOML]]
 deps = ["Dates"]
 uuid = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
-version = "1.0.3"
+version = "1.0.0"
 
 [[deps.TableTraits]]
 deps = ["IteratorInterfaceExtensions"]
@@ -1279,7 +1233,7 @@ version = "1.10.1"
 [[deps.Tar]]
 deps = ["ArgTools", "SHA"]
 uuid = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
-version = "1.10.0"
+version = "1.10.1"
 
 [[deps.TensorCore]]
 deps = ["LinearAlgebra"]
@@ -1395,7 +1349,7 @@ version = "1.4.0+3"
 [[deps.Zlib_jll]]
 deps = ["Libdl"]
 uuid = "83775a58-1f1d-513f-b197-d71354ab007a"
-version = "1.2.13+0"
+version = "1.2.12+3"
 
 [[deps.isoband_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1416,9 +1370,9 @@ uuid = "0ac62f75-1d6f-5e53-bd7c-93b484bb37c0"
 version = "0.15.1+0"
 
 [[deps.libblastrampoline_jll]]
-deps = ["Artifacts", "Libdl"]
+deps = ["Artifacts", "Libdl", "OpenBLAS_jll"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.8.0+0"
+version = "5.1.1+0"
 
 [[deps.libfdk_aac_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
