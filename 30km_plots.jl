@@ -146,12 +146,11 @@ function main(create_weights, mean_temp)
 	# f_seas
 
 	# Stats
-	println(cor(mean(lst_vectors[2]), mean(lst_vectors[3])))
+	println(lst_vectors)
+	# println(cor(mean(lst_vectors[2]), mean(lst_vectors[3])))
 	EqualVarianceTTest(
 		mean.(temps61),
 		mean.(temps05)
-		# [1,2,3,4,5,6,7,8,9,10,11,12],
-		# [1,2,3,4,5,6,7,8,9,10,11,11],
 	)
 	# println(mean.(temps06))
 	# println(mean.(temps61))

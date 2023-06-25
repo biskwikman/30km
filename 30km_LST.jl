@@ -16,11 +16,26 @@ end
 # ╔═╡ 8fd6a047-499f-4ebe-88b7-7658fc13ab08
 # Global Variables
 begin
-	collections = ["005", "006", "061"]
-	temps61 = Vector{Vector{Float32}}()
-	temps06 = Vector{Vector{Float32}}()
-	temps05 = Vector{Vector{Float32}}()
-	lst_vectors = [temps05, temps06, temps61]
+	lst = Dict(
+				"005"=>Vector{Vector{Float32}}(),
+				"006"=>Vector{Vector{Float32}}(),
+				"061"=>Vector{Vector{Float32}}(),
+		)
+	years = range(2000, 2015)
+end
+
+# ╔═╡ 502767df-89ca-46a0-8300-957780bd5640
+# Inter-annual charts
+begin
+	f_annual = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1600, 1200))
+
+	ax_yearly_ave = Axis(f_annual[1, 1], xlabel="Year", ylabel="Annual Mean Tmp (°C)", xticks=(years[1:end]), xautolimitmargin=(0,0))
+
+	plot05_yearly_ave = lines!(ax_yearly_ave, years, mean.(lst["005"]), linewidth=3)
+	plot06_yearly_ave = lines!(ax_yearly_ave, years, mean.(lst["006"]), linewidth=3)
+	plot61_yearly_ave = lines!(ax_yearly_ave, years, mean.(lst["061"]), linewidth=4, linestyle=:dash)
+
+	f_annual
 end
 
 # ╔═╡ 83734aca-afb9-4bc9-bdeb-b928fb9e893c
@@ -28,6 +43,16 @@ end
 begin
 	areas_file = "./AsiaMIP_qdeg_area.flt"
 	mask_file = "./AsiaMIP_qdeg_gosat2.byt"
+end
+
+# ╔═╡ ef5817b9-22c9-49c7-9f85-61c28556680b
+# Regions
+begin
+	regions = Array{UInt8}(undef, (480, 360))
+	read!(mask_file, regions)
+	regions = convert(Array{Union{Missing, UInt8}}, regions)
+	replace!(regions, 0 => missing)
+	
 end
 
 # ╔═╡ 22e8304d-12cc-4fb0-b6ae-4edf7973e870
@@ -44,12 +69,14 @@ end
 # ╔═╡ 339bdb5e-ff60-43b2-926c-92d92cc3831e
 # Get mean of every mesh datum in specified area per month
 function mean_temp(filepath, weights)
-	# Create appropriately sized Array
+	# Create appropriately sized Array and read data into it
 	data = Array{Float32}(undef, (1440, 720, 12))
 	read!(filepath, data)
+	# Restrict data to either Missing or Float32
 	data = convert(Array{Union{Missing, Float32}}, data)
 	# Select only Asia data
 	asia = view(data, 961:1440, 41:400, :)
+	# Replace -9999 values with missing
 	replace!(asia, -9999 => missing)
 	# Apply Weights
 	result = weights .* asia
@@ -64,6 +91,8 @@ function mean_temp(filepath, weights)
 end
 
 # ╔═╡ 43fa3e44-557d-4046-bc5c-2c7cccf782e0
+# Create arrays of averaged data
+
 # For each year
 begin
 	for i = 0:15
@@ -76,14 +105,13 @@ begin
 		end
 
 		# For each version in each year
-		for (ci, c) in enumerate(collections)
+		for (k, v) in lst
 			filename = 
-			@sprintf("MOD11A2.%s.LST_Day.GLOBAL.30km.20%s.degC.mon.bsq.flt", c, i)
-			filepath = @sprintf("./modis_data/MOD11A2.%s/MONTH/%s", c, filename)
-			push!(lst_vectors[ci], mean_temp(filepath, weights))
+			@sprintf("MOD11A2.%s.LST_Day.GLOBAL.30km.20%s.degC.mon.bsq.flt", k, i)
+			filepath = @sprintf("./modis_data/MOD11A2.%s/MONTH/%s", k, filename)
+			push!(v, mean_temp(filepath, weights))
 		end
 	end
-	println(lst_vectors)
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -368,9 +396,9 @@ version = "4.4.2+2"
 
 [[deps.FFTW]]
 deps = ["AbstractFFTs", "FFTW_jll", "LinearAlgebra", "MKL_jll", "Preferences", "Reexport"]
-git-tree-sha1 = "b4fbdd20c889804969571cc589900803edda16b7"
+git-tree-sha1 = "06bf20fcecd258eccf9a6ef7b99856a4dfe7b64c"
 uuid = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
-version = "1.7.1"
+version = "1.7.0"
 
 [[deps.FFTW_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -744,9 +772,9 @@ uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "Pkg"]
-git-tree-sha1 = "154d7aaa82d24db6d8f7e4ffcfe596f40bff214b"
+git-tree-sha1 = "2ce8695e1e699b68702c03402672a69f54b8aca9"
 uuid = "856f044c-d86e-5d09-b602-aeab76dc8ba7"
-version = "2023.1.0+0"
+version = "2022.2.0+0"
 
 [[deps.MacroTools]]
 deps = ["Markdown", "Random"]
@@ -931,9 +959,9 @@ version = "1.50.9+0"
 
 [[deps.Parsers]]
 deps = ["Dates", "PrecompileTools", "UUIDs"]
-git-tree-sha1 = "4b2e829ee66d4218e0cef22c0a64ee37cf258c29"
+git-tree-sha1 = "5a6ab2f64388fd1175effdf73fe5933ef1e0bac0"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.7.1"
+version = "2.7.0"
 
 [[deps.Pixman_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LLVMOpenMP_jll", "Libdl"]
@@ -1437,11 +1465,13 @@ version = "3.5.0+0"
 """
 
 # ╔═╡ Cell order:
+# ╠═43fa3e44-557d-4046-bc5c-2c7cccf782e0
+# ╠═502767df-89ca-46a0-8300-957780bd5640
 # ╠═37249420-1167-11ee-10c5-bf8ef74e20cf
 # ╠═8fd6a047-499f-4ebe-88b7-7658fc13ab08
 # ╠═83734aca-afb9-4bc9-bdeb-b928fb9e893c
+# ╠═ef5817b9-22c9-49c7-9f85-61c28556680b
 # ╠═22e8304d-12cc-4fb0-b6ae-4edf7973e870
 # ╠═339bdb5e-ff60-43b2-926c-92d92cc3831e
-# ╠═43fa3e44-557d-4046-bc5c-2c7cccf782e0
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

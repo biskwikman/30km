@@ -1,0 +1,29 @@
+<PAMDataset>
+  <Metadata domain="IMAGE_STRUCTURE">
+    <MDI key="INTERLEAVE">BAND</MDI>
+  </Metadata>
+  <Metadata domain="ENVI">
+    <MDI key="bands">1</MDI>
+    <MDI key="byte_order">0</MDI>
+    <MDI key="coordinate_system_string">{GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]]}</MDI>
+    <MDI key="data_ignore_value">0</MDI>
+    <MDI key="data_type">1</MDI>
+    <MDI key="file_type">ENVI Standard</MDI>
+    <MDI key="header_offset">0</MDI>
+    <MDI key="interleave">bsq</MDI>
+    <MDI key="lines">360</MDI>
+    <MDI key="samples">480</MDI>
+    <MDI key="sensor_type">Unknown</MDI>
+    <MDI key="wavelength_units">Unknown</MDI>
+  </Metadata>
+  <PAMRasterBand band="1">
+    <NoDataValue>0.00000000000000E+00</NoDataValue>
+    <Metadata>
+      <MDI key="STATISTICS_MAXIMUM">9</MDI>
+      <MDI key="STATISTICS_MEAN">4.4637610247532</MDI>
+      <MDI key="STATISTICS_MINIMUM">1</MDI>
+      <MDI key="STATISTICS_STDDEV">2.4996419724814</MDI>
+      <MDI key="STATISTICS_VALID_PERCENT">46.13</MDI>
+    </Metadata>
+  </PAMRasterBand>
+</PAMDataset>
