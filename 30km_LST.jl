@@ -4,6 +4,16 @@
 using Markdown
 using InteractiveUtils
 
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
+        el
+    end
+end
+
 # ╔═╡ 37249420-1167-11ee-10c5-bf8ef74e20cf
 begin
 	using Printf
@@ -11,31 +21,30 @@ begin
 	using CairoMakie
 	using Dates
 	using HypothesisTests
+	using PlutoUI
 end
+
+# ╔═╡ 8999ecae-84f3-40a1-af18-edc897b3f855
+@bind dataset Select(["LST_Day", "LST_Night", "EVI", "NDVI"])
 
 # ╔═╡ 8fd6a047-499f-4ebe-88b7-7658fc13ab08
 # Global Variables
 begin
-	lst = Dict(
-				"005"=>Vector{Vector{Float32}}(),
-				"006"=>Vector{Vector{Float32}}(),
-				"061"=>Vector{Vector{Float32}}(),
-		)
+
 	years = range(2000, 2015)
+	mod11a2 = ["LST_Day", "LST_Night"]
+	mod13a2 = ["EVI", "NDVI"]
 end
 
-# ╔═╡ 502767df-89ca-46a0-8300-957780bd5640
-# Inter-annual charts
+# ╔═╡ 3e2e3682-8c53-4e84-9bec-16c63d523dba
 begin
-	f_annual = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1600, 1200))
-
-	ax_yearly_ave = Axis(f_annual[1, 1], xlabel="Year", ylabel="Annual Mean Tmp (°C)", xticks=(years[1:end]), xautolimitmargin=(0,0))
-
-	plot05_yearly_ave = lines!(ax_yearly_ave, years, mean.(lst["005"]), linewidth=3)
-	plot06_yearly_ave = lines!(ax_yearly_ave, years, mean.(lst["006"]), linewidth=3)
-	plot61_yearly_ave = lines!(ax_yearly_ave, years, mean.(lst["061"]), linewidth=4, linestyle=:dash)
-
-	f_annual
+	if dataset in(mod11a2)
+		product = "MOD11A2"
+		unit = "degC"
+	elseif dataset in(mod13a2)
+		product = "MOD13A2"
+		unit = "NA"
+	end
 end
 
 # ╔═╡ 83734aca-afb9-4bc9-bdeb-b928fb9e893c
@@ -68,7 +77,7 @@ end
 
 # ╔═╡ 339bdb5e-ff60-43b2-926c-92d92cc3831e
 # Get mean of every mesh datum in specified area per month
-function mean_temp(filepath, weights)
+function mean_value(filepath, weights)
 	# Create appropriately sized Array and read data into it
 	data = Array{Float32}(undef, (1440, 720, 12))
 	read!(filepath, data)
@@ -80,14 +89,14 @@ function mean_temp(filepath, weights)
 	replace!(asia, -9999 => missing)
 	# Apply Weights
 	result = weights .* asia
-	monthly_temps = Vector{Float32}()
+	monthly_vals = Vector{Float32}()
 
 	# For each month in result
 	for i = 1:size(result)[3]
 		# Sum all results by month to find monthly average
-		append!(monthly_temps, sum(skipmissing(result[:,:,i])))
+		append!(monthly_vals, sum(skipmissing(result[:,:,i])))
 	end
-	return monthly_temps
+	return monthly_vals
 end
 
 # ╔═╡ 43fa3e44-557d-4046-bc5c-2c7cccf782e0
@@ -95,6 +104,11 @@ end
 
 # For each year
 begin
+		pvs = Dict(
+				"005"=>Vector{Vector{Float32}}(),
+				"006"=>Vector{Vector{Float32}}(),
+				"061"=>Vector{Vector{Float32}}(),
+		)
 	for i = 0:15
 
 		if i < 10
@@ -105,13 +119,39 @@ begin
 		end
 
 		# For each version in each year
-		for (k, v) in lst
-			filename = 
-			@sprintf("MOD11A2.%s.LST_Day.GLOBAL.30km.20%s.degC.mon.bsq.flt", k, i)
-			filepath = @sprintf("./modis_data/MOD11A2.%s/MONTH/%s", k, filename)
-			push!(v, mean_temp(filepath, weights))
+		for (k, v) in pvs
+
+			filename = @sprintf("%s.%s.%s.GLOBAL.30km.20%s.%s.mon.bsq.flt", product, k, dataset, i, unit)
+			filepath = @sprintf("./modis_data/%s.%s/MONTH/%s", product, k, filename)
+
+			
+			# if product == "MOD11A2"
+			# 	filename = 
+			# 	@sprintf("MOD11A2.%s.LST_Day.GLOBAL.30km.20%s.degC.mon.bsq.flt", k, i)
+			# 	filepath = @sprintf("./modis_data/MOD11A2.%s/MONTH/%s", k, filename)
+			# elseif product == "MOD13A2"
+			# 	filename = @sprintf("MOD13A2.%s.EVI.GLOBAL.30km.20%s.NA.mon.bsq.flt", k, i)
+			# 	filepath = @sprintf("./modis_data/MOD13A2.%s/MONTH/%s", k, filename)
+			# end
+			push!(v, mean_value(filepath, weights))
 		end
 	end
+end
+
+# ╔═╡ 502767df-89ca-46a0-8300-957780bd5640
+# Inter-annual charts
+begin
+	f_annual = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1600, 1200))
+
+	ax_yearly_ave = Axis(f_annual[1, 1], xlabel="Year", ylabel="Annual Mean", xticks=(years[1:end]), xautolimitmargin=(0,0))
+
+	plot05_yearly_ave = lines!(ax_yearly_ave, years, mean.(pvs["005"]), linewidth=3)
+	plot06_yearly_ave = lines!(ax_yearly_ave, years, mean.(pvs["006"]), linewidth=3)
+	plot61_yearly_ave = lines!(ax_yearly_ave, years, mean.(pvs["061"]), linewidth=4, linestyle=:dash)
+
+	# Label(f_annual[0, :], dataset, fontsize = 30)
+
+	f_annual
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -120,12 +160,14 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 HypothesisTests = "09f84164-cd44-5f33-b23f-e6b0d136a0d5"
+PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
 CairoMakie = "~0.10.6"
 HypothesisTests = "~0.11.0"
+PlutoUI = "~0.7.51"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -134,7 +176,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.9.1"
 manifest_format = "2.0"
-project_hash = "1ade347c357d1d989d6a067f6cc2bd393997ac60"
+project_hash = "c01d6637d21a35d852afb625d4860a43dcfeecda"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -145,6 +187,12 @@ weakdeps = ["ChainRulesCore"]
 
     [deps.AbstractFFTs.extensions]
     AbstractFFTsChainRulesCoreExt = "ChainRulesCore"
+
+[[deps.AbstractPlutoDingetjes]]
+deps = ["Pkg"]
+git-tree-sha1 = "8eaf9f1b4921132a4cff3f36a1d9ba923b14a481"
+uuid = "6e696c72-6542-2067-7265-42206c756150"
+version = "1.1.4"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "faa260e4cb5aba097a73fab382dd4b5819d8ec8c"
@@ -532,11 +580,29 @@ git-tree-sha1 = "0ec02c648befc2f94156eaef13b0f38106212f3f"
 uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
 version = "0.3.17"
 
+[[deps.Hyperscript]]
+deps = ["Test"]
+git-tree-sha1 = "8d511d5b81240fc8e6802386302675bdf47737b9"
+uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
+version = "0.0.4"
+
+[[deps.HypertextLiteral]]
+deps = ["Tricks"]
+git-tree-sha1 = "c47c5fa4c5308f27ccaac35504858d8914e102f9"
+uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
+version = "0.9.4"
+
 [[deps.HypothesisTests]]
 deps = ["Combinatorics", "Distributions", "LinearAlgebra", "Printf", "Random", "Rmath", "Roots", "Statistics", "StatsAPI", "StatsBase"]
 git-tree-sha1 = "4b5d5ba51f5f473737ed9de6d8a7aa190ad8c72f"
 uuid = "09f84164-cd44-5f33-b23f-e6b0d136a0d5"
 version = "0.11.0"
+
+[[deps.IOCapture]]
+deps = ["Logging", "Random"]
+git-tree-sha1 = "d75853a0bdbfb1ac815478bacd89cd27b550ace6"
+uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
+version = "0.2.3"
 
 [[deps.ImageAxes]]
 deps = ["AxisArrays", "ImageBase", "ImageCore", "Reexport", "SimpleTraits"]
@@ -770,6 +836,11 @@ version = "0.3.24"
 [[deps.Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
+[[deps.MIMEs]]
+git-tree-sha1 = "65f28ad4b594aebe22157d6fac869786a255b7eb"
+uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
+version = "0.1.4"
+
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "Pkg"]
 git-tree-sha1 = "2ce8695e1e699b68702c03402672a69f54b8aca9"
@@ -985,6 +1056,12 @@ deps = ["ColorSchemes", "Colors", "Dates", "PrecompileTools", "Printf", "Random"
 git-tree-sha1 = "f92e1315dadf8c46561fb9396e525f7200cdc227"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
 version = "1.3.5"
+
+[[deps.PlutoUI]]
+deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
+git-tree-sha1 = "b478a748be27bd2f2c73a7690da219d0844db305"
+uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+version = "0.7.51"
 
 [[deps.PolygonOps]]
 git-tree-sha1 = "77b3d3605fc1cd0b42d95eba87dfcd2bf67d5ff6"
@@ -1300,6 +1377,11 @@ git-tree-sha1 = "9a6ae7ed916312b41236fcef7e0af564ef934769"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 version = "0.9.13"
 
+[[deps.Tricks]]
+git-tree-sha1 = "aadb748be58b492045b4f56166b5188aa63ce549"
+uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
+version = "0.1.7"
+
 [[deps.TriplotBase]]
 git-tree-sha1 = "4d4ed7f294cda19382ff7de4c137d24d16adc89b"
 uuid = "981d1d27-644d-49a2-9326-4793e63143c3"
@@ -1309,6 +1391,11 @@ version = "0.1.0"
 git-tree-sha1 = "3c712976c47707ff893cf6ba4354aa14db1d8938"
 uuid = "9d95972d-f1c8-5527-a6e0-b4b365fa01f6"
 version = "1.3.0"
+
+[[deps.URIs]]
+git-tree-sha1 = "074f993b0ca030848b897beff716d93aca60f06a"
+uuid = "5c2747f8-b7ea-4ff2-ba2e-563bfd36b1d4"
+version = "1.4.2"
 
 [[deps.UUIDs]]
 deps = ["Random", "SHA"]
@@ -1465,8 +1552,10 @@ version = "3.5.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═43fa3e44-557d-4046-bc5c-2c7cccf782e0
 # ╠═502767df-89ca-46a0-8300-957780bd5640
+# ╠═8999ecae-84f3-40a1-af18-edc897b3f855
+# ╠═3e2e3682-8c53-4e84-9bec-16c63d523dba
+# ╠═43fa3e44-557d-4046-bc5c-2c7cccf782e0
 # ╠═37249420-1167-11ee-10c5-bf8ef74e20cf
 # ╠═8fd6a047-499f-4ebe-88b7-7658fc13ab08
 # ╠═83734aca-afb9-4bc9-bdeb-b928fb9e893c
