@@ -24,6 +24,8 @@ begin
 	using PlutoUI
 	using GLM
 	using DataFrames
+	using Makie.Colors
+	using ColorSchemes
 end
 
 # ╔═╡ 8999ecae-84f3-40a1-af18-edc897b3f855
@@ -106,11 +108,11 @@ end
 
 # For each year
 begin
-		pvs = Dict(
-				"005"=>Vector{Vector{Float32}}(),
-				"006"=>Vector{Vector{Float32}}(),
-				"061"=>Vector{Vector{Float32}}(),
-		)
+	pvs = Dict(
+			"005"=>Vector{Vector{Float64}}(),
+			"006"=>Vector{Vector{Float64}}(),
+			"061"=>Vector{Vector{Float64}}(),
+	)
 	for i = 0:15
 
 		if i < 10
@@ -126,15 +128,6 @@ begin
 			filename = @sprintf("%s.%s.%s.GLOBAL.30km.20%s.%s.mon.bsq.flt", product, k, dataset, i, unit)
 			filepath = @sprintf("./modis_data/%s.%s/MONTH/%s", product, k, filename)
 
-			
-			# if product == "MOD11A2"
-			# 	filename = 
-			# 	@sprintf("MOD11A2.%s.LST_Day.GLOBAL.30km.20%s.degC.mon.bsq.flt", k, i)
-			# 	filepath = @sprintf("./modis_data/MOD11A2.%s/MONTH/%s", k, filename)
-			# elseif product == "MOD13A2"
-			# 	filename = @sprintf("MOD13A2.%s.EVI.GLOBAL.30km.20%s.NA.mon.bsq.flt", k, i)
-			# 	filepath = @sprintf("./modis_data/MOD13A2.%s/MONTH/%s", k, filename)
-			# end
 			push!(v, mean_value(filepath, weights))
 		end
 	end
@@ -153,35 +146,51 @@ begin
 	
 	ax_yearly_ave = Axis(f_annual[1, 1], xlabel="Year", ylabel=ylabel, xticks=(years[1:end]), xautolimitmargin=(0,0), title=dataset, titlesize=20)
 
-	plot05_yearly_ave = lines!(ax_yearly_ave, years, mean.(pvs["005"]), linewidth=4)
-	plot06_yearly_ave = lines!(ax_yearly_ave, years, mean.(pvs["006"]), linewidth=4)
-	plot61_yearly_ave = lines!(ax_yearly_ave, years, mean.(pvs["061"]), linewidth=4)
 
-	df = DataFrame(X = years, Y = mean.(pvs["061"]))
-	# ols = lm(@formula(Y ~ X), df)
-	typeof(years)
-	# CONVERT YEARS AND DATA TO SAME TYPE WHEN USING WITH GLM
+	plot05_yearly_ave = lines!(ax_yearly_ave, years, mean.(pvs["005"]), linewidth=4, label="v05")
+	plot06_yearly_ave = lines!(ax_yearly_ave, years, mean.(pvs["006"]), linewidth=4,
+	label="v06")
+	plot61_yearly_ave = lines!(ax_yearly_ave, years, mean.(pvs["061"]), linewidth=4,  label="v61")
 
-	# f_annual
+
+	df = DataFrame(years = convert.(Float64, years), v05 = mean.(pvs["005"]), v06 = mean.(pvs["006"]), v61 = mean.(pvs["061"]))
+	
+	ols_05 = lm(@formula(v05 ~ years), df)
+	ols_06 = lm(@formula(v06 ~ years), df)
+	ols_61 = lm(@formula(v61 ~ years), df)
+	
+	plot05_yearly_ave_reg = lines!(ax_yearly_ave, df. years, round.(predict(ols_05), digits=5), linewidth=4, linestyle=:dash, color=Cycled(1))
+
+	plot06_yearly_ave_reg = lines!(ax_yearly_ave, df.years, round.(predict(ols_06), digits=5), linewidth=4, linestyle=:dash, color=Cycled(2))
+	
+	plot61_yearly_ave_reg = lines!(ax_yearly_ave, df.years, round.(predict(ols_61), digits=5), linewidth=4, linestyle=:dash, color=Cycled(3))
+
+	f_annual[1, 2] = Legend(f_annual, ax_yearly_ave)
+
+	f_annual
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+ColorSchemes = "35d6a980-a343-548e-a6ea-1d62b119f2f4"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
 HypothesisTests = "09f84164-cd44-5f33-b23f-e6b0d136a0d5"
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
 CairoMakie = "~0.10.6"
+ColorSchemes = "~3.21.0"
 DataFrames = "~1.5.0"
 GLM = "~1.8.3"
 HypothesisTests = "~0.11.0"
+Makie = "~0.19.6"
 PlutoUI = "~0.7.51"
 """
 
@@ -191,7 +200,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.9.1"
 manifest_format = "2.0"
-project_hash = "c8ac182f8f018b5a32f90d891c34763d01f6c4a9"
+project_hash = "06a55b22854f145897061ef47fd2c2d0ffdba84a"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1635,8 +1644,8 @@ version = "3.5.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═502767df-89ca-46a0-8300-957780bd5640
 # ╠═8999ecae-84f3-40a1-af18-edc897b3f855
+# ╠═502767df-89ca-46a0-8300-957780bd5640
 # ╠═3e2e3682-8c53-4e84-9bec-16c63d523dba
 # ╠═43fa3e44-557d-4046-bc5c-2c7cccf782e0
 # ╠═37249420-1167-11ee-10c5-bf8ef74e20cf
