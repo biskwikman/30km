@@ -31,6 +31,9 @@ end
 # ╔═╡ 8999ecae-84f3-40a1-af18-edc897b3f855
 @bind dataset Select(["LST_Day", "LST_Night", "EVI", "NDVI"])
 
+# ╔═╡ 4a744ca1-592d-4081-8d81-18d3488253db
+colormap = Makie.wong_colors()
+
 # ╔═╡ 8fd6a047-499f-4ebe-88b7-7658fc13ab08
 # Global Variables
 begin
@@ -146,11 +149,10 @@ begin
 	
 	ax_yearly_ave = Axis(f_annual[1, 1], xlabel="Year", ylabel=ylabel, xticks=(years[1:end]), xautolimitmargin=(0,0), title=dataset, titlesize=20)
 
-
-	plot05_yearly_ave = lines!(ax_yearly_ave, years, mean.(pvs["005"]), linewidth=4, label="v05")
-	plot06_yearly_ave = lines!(ax_yearly_ave, years, mean.(pvs["006"]), linewidth=4,
-	label="v06")
-	plot61_yearly_ave = lines!(ax_yearly_ave, years, mean.(pvs["061"]), linewidth=4,  label="v61")
+	lines!(ax_yearly_ave, years, mean.(pvs["005"]), linewidth=4, label="v05", color=(colormap[1], 0.3))
+	lines!(ax_yearly_ave, years, mean.(pvs["006"]), linewidth=4,
+	label="v06", color=(colormap[2], 0.3))
+	lines!(ax_yearly_ave, years, mean.(pvs["061"]), linewidth=4,  label="v61", color=(colormap[3], 0.3))
 
 
 	df = DataFrame(years = convert.(Float64, years), v05 = mean.(pvs["005"]), v06 = mean.(pvs["006"]), v61 = mean.(pvs["061"]))
@@ -159,11 +161,11 @@ begin
 	ols_06 = lm(@formula(v06 ~ years), df)
 	ols_61 = lm(@formula(v61 ~ years), df)
 	
-	plot05_yearly_ave_reg = lines!(ax_yearly_ave, df. years, round.(predict(ols_05), digits=5), linewidth=4, linestyle=:dash, color=Cycled(1))
+	plot05_yearly_ave_reg = lines!(ax_yearly_ave, df. years, round.(predict(ols_05), digits=5), linewidth=4, linestyle=:dash, color=colormap[1])
 
-	plot06_yearly_ave_reg = lines!(ax_yearly_ave, df.years, round.(predict(ols_06), digits=5), linewidth=4, linestyle=:dash, color=Cycled(2))
+	plot06_yearly_ave_reg = lines!(ax_yearly_ave, df.years, round.(predict(ols_06), digits=5), linewidth=4, linestyle=:dash, color=colormap[2])
 	
-	plot61_yearly_ave_reg = lines!(ax_yearly_ave, df.years, round.(predict(ols_61), digits=5), linewidth=4, linestyle=:dash, color=Cycled(3))
+	plot61_yearly_ave_reg = lines!(ax_yearly_ave, df.years, round.(predict(ols_61), digits=5), linewidth=4, linestyle=:dash, color=colormap[3])
 
 	f_annual[1, 2] = Legend(f_annual, ax_yearly_ave)
 
@@ -1645,6 +1647,7 @@ version = "3.5.0+0"
 
 # ╔═╡ Cell order:
 # ╠═8999ecae-84f3-40a1-af18-edc897b3f855
+# ╠═4a744ca1-592d-4081-8d81-18d3488253db
 # ╠═502767df-89ca-46a0-8300-957780bd5640
 # ╠═3e2e3682-8c53-4e84-9bec-16c63d523dba
 # ╠═43fa3e44-557d-4046-bc5c-2c7cccf782e0
