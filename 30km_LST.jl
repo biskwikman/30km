@@ -37,10 +37,10 @@ colormap = Makie.wong_colors()
 # ╔═╡ 8fd6a047-499f-4ebe-88b7-7658fc13ab08
 # Global Variables
 begin
-
 	years = range(2000, 2015)
 	mod11a2 = ["LST_Day", "LST_Night"]
 	mod13a2 = ["EVI", "NDVI"]
+	datasets = ["LST_Day", "LST_Night", "EVI", "NDVI"]
 end
 
 # ╔═╡ 3e2e3682-8c53-4e84-9bec-16c63d523dba
@@ -48,9 +48,11 @@ begin
 	if dataset in(mod11a2)
 		product = "MOD11A2"
 		unit = "degC"
+		ylabel = "Annual Mean Deg C"
 	elseif dataset in(mod13a2)
 		product = "MOD13A2"
 		unit = "NA"
+		ylabel = "Annual Mean"
 	end
 end
 
@@ -63,12 +65,15 @@ end
 
 # ╔═╡ ef5817b9-22c9-49c7-9f85-61c28556680b
 # Regions
+# Get Cartesian Indices for regions
 begin
 	regions = Array{UInt8}(undef, (480, 360))
 	read!(mask_file, regions)
-	regions = convert(Array{Union{Missing, UInt8}}, regions)
-	replace!(regions, 0 => missing)
-	
+	siberia_idx = findall(x -> x in(range(1,4)), regions)
+	easia_idx = findall(x -> x == 6, regions)
+	sasia_idx = findall(x -> x == 7, regions)
+	seasia_idx = findall(x -> x in(range(6,7)), regions)
+	regions_idx = [siberia_idx, easia_idx, sasia_idx, seasia_idx]
 end
 
 # ╔═╡ 22e8304d-12cc-4fb0-b6ae-4edf7973e870
@@ -96,12 +101,13 @@ function mean_value(filepath, weights)
 	replace!(asia, -9999 => missing)
 	# Apply Weights
 	result = weights .* asia
+	
 	monthly_vals = Vector{Float32}()
 
 	# For each month in result
 	for i = 1:size(result)[3]
 		# Sum all results by month to find monthly average
-		append!(monthly_vals, sum(skipmissing(result[:,:,i])))
+		append!(monthly_vals, sum(skipmissing(result[:,:,i][siberia_idx])))
 	end
 	return monthly_vals
 end
@@ -138,21 +144,32 @@ end
 
 # ╔═╡ 502767df-89ca-46a0-8300-957780bd5640
 # Inter-annual charts
+# make all regions in one figure by dataset
 begin
 	f_annual = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1600, 1200))
-
-	if product == "MOD11A2"
-		ylabel = "Annual Mean Deg C"
-	elseif product == "MOD13A2"
-		ylabel = "Annual Mean"
-	end
 	
-	ax_yearly_ave = Axis(f_annual[1, 1], xlabel="Year", ylabel=ylabel, xticks=(years[1:end]), xautolimitmargin=(0,0), title=dataset, titlesize=20)
+	for dataset in datasets
+		if dataset in(mod11a2)
+			product = "MOD11A2"
+			unit = "degC"
+			ylabel = "Annual Mean Deg C"
+		elseif dataset in(mod13a2)
+			product = "MOD13A2"
+			unit = "NA"
+			ylabel = "Annual Mean"
+		end
+		
+		title = dataset
+		
+		ax_yearly_ave = Axis(f_annual[1, 1], xlabel="Year", ylabel=ylabel, xticks=(years[1:end]), xautolimitmargin=(0,0), title=dataset, titlesize=20)
 
-	lines!(ax_yearly_ave, years, mean.(pvs["005"]), linewidth=4, label="v05", color=(colormap[1], 0.3))
-	lines!(ax_yearly_ave, years, mean.(pvs["006"]), linewidth=4,
-	label="v06", color=(colormap[2], 0.3))
-	lines!(ax_yearly_ave, years, mean.(pvs["061"]), linewidth=4,  label="v61", color=(colormap[3], 0.3))
+		lines!(ax_yearly_ave, years, mean.(pvs["005"]), linewidth=4, label="v05", color=(colormap[1], 0.3))
+	
+		lines!(ax_yearly_ave, years, mean.(pvs["006"]), linewidth=4,
+		label="v06", color=(colormap[2], 0.3))
+		
+		lines!(ax_yearly_ave, years, mean.(pvs["061"]), linewidth=4,  label="v61", color=(colormap[3], 0.3))
+	end
 
 
 	df = DataFrame(years = convert.(Float64, years), v05 = mean.(pvs["005"]), v06 = mean.(pvs["006"]), v61 = mean.(pvs["061"]))
@@ -1647,9 +1664,9 @@ version = "3.5.0+0"
 
 # ╔═╡ Cell order:
 # ╠═8999ecae-84f3-40a1-af18-edc897b3f855
-# ╠═4a744ca1-592d-4081-8d81-18d3488253db
 # ╠═502767df-89ca-46a0-8300-957780bd5640
 # ╠═3e2e3682-8c53-4e84-9bec-16c63d523dba
+# ╠═4a744ca1-592d-4081-8d81-18d3488253db
 # ╠═43fa3e44-557d-4046-bc5c-2c7cccf782e0
 # ╠═37249420-1167-11ee-10c5-bf8ef74e20cf
 # ╠═8fd6a047-499f-4ebe-88b7-7658fc13ab08
