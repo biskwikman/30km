@@ -29,27 +29,19 @@ begin
 end
 
 # ╔═╡ 8999ecae-84f3-40a1-af18-edc897b3f855
-@bind region_names Select(["East Asia","Southeast Asia","South Asia","Siberia"])
-
-# ╔═╡ 4a744ca1-592d-4081-8d81-18d3488253db
-colormap = Makie.wong_colors()
+@bind region_name Select(["East Asia","Southeast Asia","South Asia","Siberia"])
 
 # ╔═╡ 8fd6a047-499f-4ebe-88b7-7658fc13ab08
 # Global Variables
 begin
+	areas_file = "./AsiaMIP_qdeg_area.flt"
+	mask_file = "./AsiaMIP_qdeg_gosat2.byt"
 	years = range(2000, 2015)
 	xticks = years[1:end]
 	mod11a2 = ["LST_Day", "LST_Night"]
 	mod13a2 = ["EVI", "NDVI"]
 	datasets = ["LST_Day", "LST_Night", "EVI", "NDVI"]
 	xlabel="Year"
-end
-
-# ╔═╡ 83734aca-afb9-4bc9-bdeb-b928fb9e893c
-# File paths
-begin
-	areas_file = "./AsiaMIP_qdeg_area.flt"
-	mask_file = "./AsiaMIP_qdeg_gosat2.byt"
 end
 
 # ╔═╡ ef5817b9-22c9-49c7-9f85-61c28556680b
@@ -60,7 +52,7 @@ begin
 	siberia_idx = findall(x -> x in(range(1,4)), regions_array)
 	easia_idx = findall(x -> x == 6, regions_array)
 	sasia_idx = findall(x -> x == 7, regions_array)
-	seasia_idx = findall(x -> x in(range(6,7)), regions_array)
+	seasia_idx = findall(x -> x in(range(8,9)), regions_array)
 	regions_idx = [siberia_idx, easia_idx, sasia_idx, seasia_idx]
 
 	regions = Dict(
@@ -69,17 +61,6 @@ begin
 		"South Asia" => sasia_idx,
 		"Siberia" => siberia_idx,
 	)
-end
-
-# ╔═╡ 22e8304d-12cc-4fb0-b6ae-4edf7973e870
-# Create Weights
-begin
-	areas = Array{Float32}(undef, (480, 360))
-	read!(areas_file, areas)
-	areas = convert(Array{Union{Missing, Float32}}, areas)
-	replace!(areas, -9999 => missing)
-	total_area = sum(skipmissing(areas))
-	weights = areas/total_area
 end
 
 # ╔═╡ 339bdb5e-ff60-43b2-926c-92d92cc3831e
@@ -96,15 +77,26 @@ function mean_value(filepath, weights)
 	replace!(asia, -9999 => missing)
 	# Apply Weights
 	result = weights .* asia
-	
+	println(size(result))
 	monthly_vals = Vector{Float32}()
 
 	# For each month in result
-	for i = 1:size(result)[3]
+	for i = 1:12
 		# Sum all results by month to find monthly average
-		append!(monthly_vals, sum(skipmissing(result[:,:,i][siberia_idx])))
+		append!(monthly_vals, sum(skipmissing(result[:,:,i][regions[region_name]])))
 	end
 	return monthly_vals
+end
+
+# ╔═╡ 22e8304d-12cc-4fb0-b6ae-4edf7973e870
+# Create Weights
+begin
+	areas = Array{Float32}(undef, (480, 360))
+	read!(areas_file, areas)
+	areas = convert(Array{Union{Missing, Float32}}, areas)
+	replace!(areas, -9999 => missing)
+	total_area = sum(skipmissing(areas))
+	weights = areas/total_area
 end
 
 # ╔═╡ 43fa3e44-557d-4046-bc5c-2c7cccf782e0
@@ -112,31 +104,28 @@ end
 
 # For each year
 function create_averages(product, dataset, unit)
-	pvs = Dict(
+	product_means = Dict(
 			"005"=>Vector{Vector{Float64}}(),
 			"006"=>Vector{Vector{Float64}}(),
 			"061"=>Vector{Vector{Float64}}(),
 	)
-	for i = 0:15
-
-		if i < 10
-			string(i)
-			i = @sprintf("%d%d", 0, i)
-		else
-			string(i)
-		end
+	
+	for i in string.(collect(years))
 
 		# For each version in each year
-		for (k, v) in pvs
+		for (k, v) in product_means
 
-			filename = @sprintf("%s.%s.%s.GLOBAL.30km.20%s.%s.mon.bsq.flt", product, k, dataset, i, unit)
+			filename = @sprintf("%s.%s.%s.GLOBAL.30km.%s.%s.mon.bsq.flt", product, k, dataset, i, unit)
 			filepath = @sprintf("./modis_data/%s.%s/MONTH/%s", product, k, filename)
 
 			push!(v, mean_value(filepath, weights))
 		end
 	end
-	return pvs
+	return product_means
 end
+
+# ╔═╡ 4a744ca1-592d-4081-8d81-18d3488253db
+colormap = Makie.wong_colors()
 
 # ╔═╡ 502767df-89ca-46a0-8300-957780bd5640
 # Inter-annual charts
@@ -144,11 +133,14 @@ end
 begin
 	
 	f = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1600, 1200))
+	
 
 	ga = f[1, 1] = GridLayout()
 	gb = f[1, 2] = GridLayout()
 	gc = f[2, 1] = GridLayout()
 	gd = f[2, 2] = GridLayout()
+	gl = f[0, :] = GridLayout()
+	Label(gl[1,1], region_name, fontsize = 30)
 	grids 	= 	[ga, gb, gc, gd]
 	axes_idx 	= 	[[1, 1], [1, 2], [2, 1], [2, 2]]
 	
@@ -165,15 +157,15 @@ begin
 		
 		title = dataset
 
-		Axis(grids[i][1,1], xlabel=xlabel, ylabel=ylabel, title=title, xticks=xticks, xautolimitmargin=(0,0), titlesize=20)
+		ax = Axis(grids[i][1,1], xlabel=xlabel, ylabel=ylabel, title=title, xticks=xticks, titlesize=20)
 
 		pvs = create_averages(product, dataset, unit)
 
-		lines!(grids[i][1,1], years, mean.(pvs["005"]), label="v05", color=(colormap[1], 0.3))
+		lines!(grids[i][1,1], years, mean.(pvs["005"]), label="v05μ", color=(colormap[1], 0.3))
 	
-		lines!(grids[i][1,1], years, mean.(pvs["006"]), label="v06", color=(colormap[2], 0.3))
+		lines!(grids[i][1,1], years, mean.(pvs["006"]), label="v06μ", color=(colormap[2], 0.3))
 		
-		lines!(grids[i][1,1], years, mean.(pvs["061"]), label="v61", color=(colormap[3], 0.3))
+		lines!(grids[i][1,1], years, mean.(pvs["061"]), label="v61μ", color=(colormap[3], 0.3))
 
 		df = DataFrame(years = convert.(Float64, years), v05 = mean.(pvs["005"]), v06 = mean.(pvs["006"]), v61 = mean.(pvs["061"]))
 	
@@ -181,16 +173,20 @@ begin
 		ols_06 = lm(@formula(v06 ~ years), df)
 		ols_61 = lm(@formula(v61 ~ years), df)
 		
-		plot05_yearly_ave_reg = lines!(grids[i][1,1], df. years, round.(predict(ols_05), digits=5), linewidth=3, linestyle=:dash, color=colormap[1])
+		lines!(grids[i][1,1], df. years, round.(predict(ols_05), digits=5), label="v05 lm", linewidth=3, linestyle=:dash, color=colormap[1])
 		
-		# plot06_yearly_ave_reg = lines!(axes[i], df.years, round.(predict(ols_06), digits=5), linewidth=4, linestyle=:dash, color=colormap[2])
+		lines!(grids[i][1,1], df.years, round.(predict(ols_06), digits=5), label="v06 lm", linewidth=3, linestyle=:dash, color=colormap[2])
 	
-		# plot61_yearly_ave_reg = lines!(axes[i], df.years, round.(predict(ols_61), digits=5), linewidth=4, linestyle=:dash, color=colormap[3])
+		lines!(grids[i][1,1], df.years, round.(predict(ols_61), digits=5), label="v61 lm", linewidth=3, linestyle=:dash, color=colormap[3])
+
+		if i == 1
+			axislegend(ax, position = :lt, nbanks=2)
+		end
+		
 	end
-
-	# f[1, 2] = Legend(f, ax_yearly_ave)
-
+	
 	f
+	
 end
 
 # ╔═╡ 2b5ee6e5-2c7e-4391-9132-5eb0a3cdf02e
@@ -1678,14 +1674,13 @@ version = "3.5.0+0"
 # ╔═╡ Cell order:
 # ╠═8999ecae-84f3-40a1-af18-edc897b3f855
 # ╠═502767df-89ca-46a0-8300-957780bd5640
-# ╠═4a744ca1-592d-4081-8d81-18d3488253db
 # ╠═43fa3e44-557d-4046-bc5c-2c7cccf782e0
-# ╠═37249420-1167-11ee-10c5-bf8ef74e20cf
-# ╠═8fd6a047-499f-4ebe-88b7-7658fc13ab08
-# ╠═83734aca-afb9-4bc9-bdeb-b928fb9e893c
+# ╠═339bdb5e-ff60-43b2-926c-92d92cc3831e
 # ╠═ef5817b9-22c9-49c7-9f85-61c28556680b
 # ╠═22e8304d-12cc-4fb0-b6ae-4edf7973e870
-# ╠═339bdb5e-ff60-43b2-926c-92d92cc3831e
+# ╠═8fd6a047-499f-4ebe-88b7-7658fc13ab08
+# ╠═4a744ca1-592d-4081-8d81-18d3488253db
+# ╠═37249420-1167-11ee-10c5-bf8ef74e20cf
 # ╠═2b5ee6e5-2c7e-4391-9132-5eb0a3cdf02e
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
