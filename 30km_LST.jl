@@ -36,6 +36,7 @@ end
 begin
 	areas_file = "./AsiaMIP_qdeg_area.flt"
 	mask_file = "./AsiaMIP_qdeg_gosat2.byt"
+	sample_file = "./modis_data/MOD11A2.061/MONTH/MOD11A2.061.LST_Day.GLOBAL.30km.2021.degC.mon.bsq.flt"
 	years = range(2000, 2015)
 	xticks = years[1:end]
 	mod11a2 = ["LST_Day", "LST_Night"]
@@ -77,7 +78,6 @@ function mean_value(filepath, weights)
 	replace!(asia, -9999 => missing)
 	# Apply Weights
 	result = weights .* asia
-	println(size(result))
 	monthly_vals = Vector{Float32}()
 
 	# For each month in result
@@ -91,12 +91,33 @@ end
 # ╔═╡ 22e8304d-12cc-4fb0-b6ae-4edf7973e870
 # Create Weights
 begin
+	sample_data = Array{Float32}(undef, (1440, 720))
+	read!(sample_file, sample_data)
+	sample_data = view(sample_data, 961:1440, 41:400)
+	sample_data = convert(Array{Union{Missing, Float32}}, sample_data)
+	replace!(sample_data, -9999.0 => missing)
+	
 	areas = Array{Float32}(undef, (480, 360))
 	read!(areas_file, areas)
 	areas = convert(Array{Union{Missing, Float32}}, areas)
-	replace!(areas, -9999 => missing)
-	total_area = sum(skipmissing(areas))
+	replace!(areas, -9999.0 => missing)
+
+	sample_data_idx = findall(x -> !ismissing(x), sample_data)
+	sample_data_idx_inv = findall(x -> ismissing(x), sample_data)
+	
+	
+	total_area = sum(skipmissing(areas[sample_data_idx]))
+
+	# MAKE AREAS WHICH ARE NOT OVERLAPPING DATA BECOME MISSING SO THAT WEIGHTS MATRIX DOES NOT INCLUDE THEM
+	# areas[sample_data_idx_inv] .= missing
 	weights = areas/total_area
+
+	# fig = Figure()
+	# ax = Axis(fig[1, 1])
+	# heatmap!(ax, areas)
+	# heatmap!(ax, sample_data)
+	# fig
+	
 end
 
 # ╔═╡ 43fa3e44-557d-4046-bc5c-2c7cccf782e0
