@@ -31,6 +31,9 @@ end
 # ╔═╡ 8999ecae-84f3-40a1-af18-edc897b3f855
 @bind region_name Select(["East Asia","Southeast Asia","South Asia","Siberia"])
 
+# ╔═╡ 65e8ea4a-4b6b-4a4e-aaa1-b26ab31afeae
+region_name
+
 # ╔═╡ 8fd6a047-499f-4ebe-88b7-7658fc13ab08
 # Global Variables
 begin
@@ -41,51 +44,10 @@ begin
 	xticks = years[1:end]
 	mod11a2 = ["LST_Day", "LST_Night"]
 	mod13a2 = ["EVI", "NDVI"]
-	datasets = ["LST_Day", "LST_Night", "EVI", "NDVI"]
+	mod15a2 = ["Fpar", "LAI"]
+	datasets = ["LST_Day", "LST_Night", "EVI", "NDVI", "Fpar", "LAI"]
 	xlabel="Year"
-end
-
-# ╔═╡ ef5817b9-22c9-49c7-9f85-61c28556680b
-# Get Cartesian Indices for regions
-begin
-	regions_array = Array{UInt8}(undef, (480, 360))
-	read!(mask_file, regions_array)
-	siberia_idx = findall(x -> x in(range(1,4)), regions_array)
-	easia_idx = findall(x -> x == 6, regions_array)
-	sasia_idx = findall(x -> x == 7, regions_array)
-	seasia_idx = findall(x -> x in(range(8,9)), regions_array)
-	regions_idx = [siberia_idx, easia_idx, sasia_idx, seasia_idx]
-
-	regions = Dict(
-		"East Asia" => easia_idx,
-		"Southeast Asia" => seasia_idx,
-		"South Asia" => sasia_idx,
-		"Siberia" => siberia_idx,
-	)
-end
-
-# ╔═╡ 339bdb5e-ff60-43b2-926c-92d92cc3831e
-# Get mean of every mesh datum in specified area per month
-function mean_value(filepath, weights)
-	# Create appropriately sized Array and read data into it
-	data = Array{Float32}(undef, (1440, 720, 12))
-	read!(filepath, data)
-	# Restrict data to either Missing or Float32
-	data = convert(Array{Union{Missing, Float32}}, data)
-	# Select only Asia data
-	asia = view(data, 961:1440, 41:400, :)
-	# Replace -9999 values with missing
-	replace!(asia, -9999 => missing)
-	# Apply Weights
-	result = weights .* asia
-	monthly_vals = Vector{Float32}()
-
-	# For each month in result
-	for i = 1:12
-		# Sum all results by month to find monthly average
-		append!(monthly_vals, sum(skipmissing(result[:,:,i][regions[region_name]])))
-	end
-	return monthly_vals
+	mod15a2
 end
 
 # ╔═╡ 22e8304d-12cc-4fb0-b6ae-4edf7973e870
@@ -104,20 +66,61 @@ begin
 
 	sample_data_idx = findall(x -> !ismissing(x), sample_data)
 	sample_data_idx_inv = findall(x -> ismissing(x), sample_data)
+	areas[sample_data_idx_inv] .= missing
 	
 	
-	total_area = sum(skipmissing(areas[sample_data_idx]))
+	# total_area = sum(skipmissing(areas[sample_data_idx]))
 
-	# MAKE AREAS WHICH ARE NOT OVERLAPPING DATA BECOME MISSING SO THAT WEIGHTS MATRIX DOES NOT INCLUDE THEM
-	# areas[sample_data_idx_inv] .= missing
-	weights = areas/total_area
+	# SOMETHING IS FUCKED UP HERE
+	# GET STATS ON WEIGHTS I THINK ITS ALL LIKE THE SAME NUMBER
+	# weights = areas/total_area
+end
 
-	# fig = Figure()
-	# ax = Axis(fig[1, 1])
-	# heatmap!(ax, areas)
-	# heatmap!(ax, sample_data)
-	# fig
+# ╔═╡ ef5817b9-22c9-49c7-9f85-61c28556680b
+# Get Cartesian Indices for regions
+begin
+	regions_array = Array{UInt8}(undef, (480, 360))
+	read!(mask_file, regions_array)
+	siberia_idx = findall(x -> x in(range(1,4)), regions_array)
+	easia_idx = findall(x -> x == 6, regions_array)
+	sasia_idx = findall(x -> x == 7, regions_array)
+	seasia_idx = findall(x -> x in(range(8,9)), regions_array)
+	seasia_idx_inv = findall(x -> !(x in(range(8, 9))), regions_array)
+	regions_idx = [siberia_idx, easia_idx, sasia_idx, seasia_idx]
+
+	regions = Dict(
+		"East Asia" => easia_idx,
+		"Southeast Asia" => seasia_idx,
+		"South Asia" => sasia_idx,
+		"Siberia" => siberia_idx,
+	)
 	
+end
+
+# ╔═╡ 339bdb5e-ff60-43b2-926c-92d92cc3831e
+# Get mean of every mesh datum in specified area per month
+function mean_value(filepath)
+	# Create appropriately sized Array and read data into it
+	data = Array{Float32}(undef, (1440, 720, 12))
+	read!(filepath, data)
+	# Restrict data to either Missing or Float32
+	data = convert(Array{Union{Missing, Float32}}, data)
+	# Select only Asia data
+	asia = view(data, 961:1440, 41:400, :)
+	# Replace -9999 values with missing
+	replace!(asia, -9999 => missing)
+	# Apply Weights
+	# result = weights .* asia
+	result = areas .* asia
+	total_area = sum(skipmissing(areas[regions[region_name]]))
+	monthly_vals = Vector{Float32}()
+
+	# For each month in result
+	for i = 1:12
+		# Sum all results by month to find monthly average
+		append!(monthly_vals, sum(skipmissing(result[:,:,i][regions[region_name]]))/total_area)
+	end
+	return monthly_vals
 end
 
 # ╔═╡ 43fa3e44-557d-4046-bc5c-2c7cccf782e0
@@ -135,11 +138,16 @@ function create_averages(product, dataset, unit)
 
 		# For each version in each year
 		for (k, v) in product_means
+			if k == "005" && product == "MOD15A2H"
+				product = "MOD15A2"
+			elseif k != "005" && occursin("MOD15", product)
+				product = "MOD15A2H"
+			end
 
 			filename = @sprintf("%s.%s.%s.GLOBAL.30km.%s.%s.mon.bsq.flt", product, k, dataset, i, unit)
 			filepath = @sprintf("./modis_data/%s.%s/MONTH/%s", product, k, filename)
 
-			push!(v, mean_value(filepath, weights))
+			push!(v, mean_value(filepath))
 		end
 	end
 	return product_means
@@ -150,9 +158,7 @@ colormap = Makie.wong_colors()
 
 # ╔═╡ 502767df-89ca-46a0-8300-957780bd5640
 # Inter-annual charts
-# make charts by region (total 5)
 begin
-	
 	f = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1600, 1200))
 	
 
@@ -160,18 +166,25 @@ begin
 	gb = f[1, 2] = GridLayout()
 	gc = f[2, 1] = GridLayout()
 	gd = f[2, 2] = GridLayout()
+	ge = f[3, 1] = GridLayout()
 	gl = f[0, :] = GridLayout()
 	Label(gl[1,1], region_name, fontsize = 30)
-	grids 	= 	[ga, gb, gc, gd]
-	axes_idx 	= 	[[1, 1], [1, 2], [2, 1], [2, 2]]
+	grids 	= 	[ga, gb, gc, gd, ge]
+	axes_idx 	= 	[[1, 1], [1, 2], [2, 1], [2, 2], [3, 1]]
 	
 	for (i, dataset) in enumerate(datasets)
 		if dataset in(mod11a2)
 			product = "MOD11A2"
 			unit = "degC"
 			ylabel = "Annual Mean Deg C"
-		elseif dataset in(mod13a2)
+		end
+		if dataset in(mod13a2)
 			product = "MOD13A2"
+			unit = "NA"
+			ylabel = "Annual Mean"
+		end
+		if dataset in(mod15a2)
+			product = "MOD15A2H"
 			unit = "NA"
 			ylabel = "Annual Mean"
 		end
@@ -1694,11 +1707,12 @@ version = "3.5.0+0"
 
 # ╔═╡ Cell order:
 # ╠═8999ecae-84f3-40a1-af18-edc897b3f855
+# ╠═65e8ea4a-4b6b-4a4e-aaa1-b26ab31afeae
 # ╠═502767df-89ca-46a0-8300-957780bd5640
 # ╠═43fa3e44-557d-4046-bc5c-2c7cccf782e0
 # ╠═339bdb5e-ff60-43b2-926c-92d92cc3831e
-# ╠═ef5817b9-22c9-49c7-9f85-61c28556680b
 # ╠═22e8304d-12cc-4fb0-b6ae-4edf7973e870
+# ╠═ef5817b9-22c9-49c7-9f85-61c28556680b
 # ╠═8fd6a047-499f-4ebe-88b7-7658fc13ab08
 # ╠═4a744ca1-592d-4081-8d81-18d3488253db
 # ╠═37249420-1167-11ee-10c5-bf8ef74e20cf
