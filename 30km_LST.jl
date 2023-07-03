@@ -31,27 +31,11 @@ end
 # ╔═╡ 8999ecae-84f3-40a1-af18-edc897b3f855
 @bind region_name Select(["East Asia","Southeast Asia","South Asia","Siberia"])
 
-# ╔═╡ 65e8ea4a-4b6b-4a4e-aaa1-b26ab31afeae
-region_name
-
-# ╔═╡ 8fd6a047-499f-4ebe-88b7-7658fc13ab08
-# Global Variables
-begin
-	areas_file = "./AsiaMIP_qdeg_area.flt"
-	mask_file = "./AsiaMIP_qdeg_gosat2.byt"
-	sample_file = "./modis_data/MOD11A2.061/MONTH/MOD11A2.061.LST_Day.GLOBAL.30km.2021.degC.mon.bsq.flt"
-	years = range(2000, 2015)
-	xticks = years[1:end]
-	mod11a2 = ["LST_Day", "LST_Night"]
-	mod13a2 = ["EVI", "NDVI"]
-	mod15a2 = ["Fpar", "LAI"]
-	datasets = ["LST_Day", "LST_Night", "EVI", "NDVI", "Fpar", "LAI"]
-	xlabel="Year"
-	mod15a2
-end
+# ╔═╡ 3ffa5b58-f446-46b4-b5ae-3277d0d089e7
+# save(@sprintf("./output/%s.png", region_name), f)
 
 # ╔═╡ 22e8304d-12cc-4fb0-b6ae-4edf7973e870
-# Create Weights
+# Create Areas data
 begin
 	sample_data = Array{Float32}(undef, (1440, 720))
 	read!(sample_file, sample_data)
@@ -64,16 +48,31 @@ begin
 	areas = convert(Array{Union{Missing, Float32}}, areas)
 	replace!(areas, -9999.0 => missing)
 
-	sample_data_idx = findall(x -> !ismissing(x), sample_data)
-	sample_data_idx_inv = findall(x -> ismissing(x), sample_data)
-	areas[sample_data_idx_inv] .= missing
-	
-	
-	# total_area = sum(skipmissing(areas[sample_data_idx]))
+#
+	# fpar_2002 = Array{Float32}(undef, (1440, 720, 12))
+	# read!("./modis_data/MOD15A2H.006/MONTH/MOD15A2H.006.Fpar.GLOBAL.30km.2002.NA.mon.bsq.flt", fpar_2002)
+	# fpar_2002 = view(fpar_2002, 961:1440, 41:400, :)
+	# fpar_2002 = convert(Array{Union{Missing, Float32}}, fpar_2002)
+	# replace!(fpar_2002, -9999.0 => missing)
+	# fpar_2002_idx_inv = findall(x -> ismissing(x), fpar_2002[:,:,1])
+	# areas[fpar_2002_idx_inv] .= missing
+	# result = areas .* fpar_2002
+	# fpar_area = sum(skipmissing(areas[regions["Southeast Asia"]]))
+	# fpar_vals = Vector{Float32}()
 
-	# SOMETHING IS FUCKED UP HERE
-	# GET STATS ON WEIGHTS I THINK ITS ALL LIKE THE SAME NUMBER
-	# weights = areas/total_area
+	# for i = 1:12
+	# 	# Sum all results by month to find monthly average
+	# 	append!(fpar_vals, sum(skipmissing(result[:,:,i][regions["Southeast Asia"]]))/fpar_area)
+	# end
+	# # fpar_2002_mean = sum(skipmissing(fpar_2002.[regions["Southeast Asia"]]))/fpar_area
+	# println(fpar_vals)
+#
+
+	
+
+	# sample_data_idx = findall(x -> !ismissing(x), sample_data)
+	# sample_data_idx_inv = findall(x -> ismissing(x), sample_data)
+	# areas[sample_data_idx_inv] .= missing
 end
 
 # ╔═╡ ef5817b9-22c9-49c7-9f85-61c28556680b
@@ -94,12 +93,13 @@ begin
 		"South Asia" => sasia_idx,
 		"Siberia" => siberia_idx,
 	)
+	println(typeof(regions["Southeast Asia"]))
 	
 end
 
 # ╔═╡ 339bdb5e-ff60-43b2-926c-92d92cc3831e
 # Get mean of every mesh datum in specified area per month
-function mean_value(filepath)
+function mean_value(filepath, areas)
 	# Create appropriately sized Array and read data into it
 	data = Array{Float32}(undef, (1440, 720, 12))
 	read!(filepath, data)
@@ -110,9 +110,11 @@ function mean_value(filepath)
 	# Replace -9999 values with missing
 	replace!(asia, -9999 => missing)
 	# Apply Weights
-	# result = weights .* asia
 	result = areas .* asia
-	total_area = sum(skipmissing(areas[regions[region_name]]))
+	
+	missing_data = findall(x -> ismissing(x), asia[regions[region_name]])
+	areas[missing_data] .= missing
+	# total_area = sum(skipmissing(areas[regions[region_name]]))
 	monthly_vals = Vector{Float32}()
 
 	# For each month in result
@@ -125,8 +127,6 @@ end
 
 # ╔═╡ 43fa3e44-557d-4046-bc5c-2c7cccf782e0
 # Create arrays of averaged data
-
-# For each year
 function create_averages(product, dataset, unit)
 	product_means = Dict(
 			"005"=>Vector{Vector{Float64}}(),
@@ -134,6 +134,7 @@ function create_averages(product, dataset, unit)
 			"061"=>Vector{Vector{Float64}}(),
 	)
 	
+	# for each year
 	for i in string.(collect(years))
 
 		# For each version in each year
@@ -153,13 +154,34 @@ function create_averages(product, dataset, unit)
 	return product_means
 end
 
+# ╔═╡ 8fd6a047-499f-4ebe-88b7-7658fc13ab08
+# Global Variables
+begin
+	areas_file = "./AsiaMIP_qdeg_area.flt"
+	mask_file = "./AsiaMIP_qdeg_gosat2.byt"
+	sample_file = "./modis_data/MOD11A2.061/MONTH/MOD11A2.061.LST_Day.GLOBAL.30km.2021.degC.mon.bsq.flt"
+	years = range(2000, 2015)
+	xticks = years[1:end]
+	mod11a2 = ["LST_Day", "LST_Night"]
+	mod13a2 = ["EVI", "NDVI"]
+	mod15a2 = ["Fpar", "Lai"]
+	# datasets = ["LST_Day", "LST_Night", "EVI", "NDVI", "Fpar", "Lai"]
+	products = Dict(
+		"MOD11A2" => mod11a2
+		"MOD13A2" => mod13a2
+		"MOD15A2" => mod15a2
+	)
+	xlabel="Year"
+end
+
 # ╔═╡ 4a744ca1-592d-4081-8d81-18d3488253db
 colormap = Makie.wong_colors()
 
 # ╔═╡ 502767df-89ca-46a0-8300-957780bd5640
 # Inter-annual charts
 begin
-	f = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1600, 1200))
+	CairoMakie.activate!(type = "svg")
+	f = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1600, 1400))
 	
 
 	ga = f[1, 1] = GridLayout()
@@ -167,11 +189,12 @@ begin
 	gc = f[2, 1] = GridLayout()
 	gd = f[2, 2] = GridLayout()
 	ge = f[3, 1] = GridLayout()
+	gf = f[3, 2] = GridLayout()
 	gl = f[0, :] = GridLayout()
 	Label(gl[1,1], region_name, fontsize = 30)
-	grids 	= 	[ga, gb, gc, gd, ge]
-	axes_idx 	= 	[[1, 1], [1, 2], [2, 1], [2, 2], [3, 1]]
-	
+	grids 	= 	[ga, gb, gc, gd, ge, gf]
+
+	# make function to create weight and missing data for each product.
 	for (i, dataset) in enumerate(datasets)
 		if dataset in(mod11a2)
 			product = "MOD11A2"
@@ -188,12 +211,12 @@ begin
 			unit = "NA"
 			ylabel = "Annual Mean"
 		end
+
+		pvs = create_averages(product, dataset, unit)
 		
 		title = dataset
 
 		ax = Axis(grids[i][1,1], xlabel=xlabel, ylabel=ylabel, title=title, xticks=xticks, titlesize=20)
-
-		pvs = create_averages(product, dataset, unit)
 
 		lines!(grids[i][1,1], years, mean.(pvs["005"]), label="v05μ", color=(colormap[1], 0.3))
 	
@@ -218,7 +241,6 @@ begin
 		end
 		
 	end
-	
 	f
 	
 end
@@ -226,7 +248,7 @@ end
 # ╔═╡ 2b5ee6e5-2c7e-4391-9132-5eb0a3cdf02e
 html"""<style>
 main {
-    max-width: 96%;
+    max-width: 82%;
     margin-left: 1%;
     margin-right: 2% !important;
 }
@@ -1707,7 +1729,7 @@ version = "3.5.0+0"
 
 # ╔═╡ Cell order:
 # ╠═8999ecae-84f3-40a1-af18-edc897b3f855
-# ╠═65e8ea4a-4b6b-4a4e-aaa1-b26ab31afeae
+# ╠═3ffa5b58-f446-46b4-b5ae-3277d0d089e7
 # ╠═502767df-89ca-46a0-8300-957780bd5640
 # ╠═43fa3e44-557d-4046-bc5c-2c7cccf782e0
 # ╠═339bdb5e-ff60-43b2-926c-92d92cc3831e
