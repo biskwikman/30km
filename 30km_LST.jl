@@ -34,45 +34,57 @@ end
 # ╔═╡ 3ffa5b58-f446-46b4-b5ae-3277d0d089e7
 # save(@sprintf("./output/%s.png", region_name), f)
 
-# ╔═╡ 22e8304d-12cc-4fb0-b6ae-4edf7973e870
-# Create Areas data
-begin
-	sample_data = Array{Float32}(undef, (1440, 720))
-	read!(sample_file, sample_data)
-	sample_data = view(sample_data, 961:1440, 41:400)
-	sample_data = convert(Array{Union{Missing, Float32}}, sample_data)
-	replace!(sample_data, -9999.0 => missing)
+# ╔═╡ 178b80c2-4239-4866-b115-82de5e0a3f60
+function get_sample_data(product, unit)
+	sample_filepath = @sprintf("./modis_data/%s.005/MONTH", product[1])
+	sample_filename = @sprintf("%s/%s.005.%s.GLOBAL.30km.2001.%s.mon.bsq.flt", sample_filepath, product[1], product[2][1], unit)
 	
+	prod_sample = Array{Float32}(undef, 1440, 720)
+	read!(sample_filename, prod_sample)
+	prod_sample = view(prod_sample, 961:1440, 41:400)
+	prod_sample = convert(Array{Union{Missing, Float32}}, prod_sample)
+	replace!(prod_sample, -9999.0 => missing)
+	prod_missing_areas = findall(x -> ismissing(x), prod_sample)
+	return prod_sample, prod_missing_areas
+end
+
+# ╔═╡ 8fd6a047-499f-4ebe-88b7-7658fc13ab08
+# Global Variables
+begin
+	areas_file = "./AsiaMIP_qdeg_area.flt"
+	mask_file = "./AsiaMIP_qdeg_gosat2.byt"
+	sample_file = "./modis_data/MOD11A2.061/MONTH/MOD11A2.061.LST_Day.GLOBAL.30km.2021.degC.mon.bsq.flt"
+	years = range(2000, 2015)
+	xticks = years[1:end]
+	mod11a2 = ["LST_Day", "LST_Night"]
+	mod13a2 = ["EVI", "NDVI"]
+	mod15a2 = ["Fpar", "Lai"]
+	# datasets = ["LST_Day", "LST_Night", "EVI", "NDVI", "Fpar", "Lai"]
+	products = Dict(
+		"MOD11A2" => mod11a2,
+		"MOD13A2" => mod13a2,
+		"MOD15A2H" => mod15a2,
+	)
+
+	averaged_data_all = Dict(
+		"LST_Day" => Dict{String, Vector{Vector{Float64}}}, 
+		"LST_Night" => Dict{String, Vector{Vector{Float64}}},
+		"EVI" => Dict{String, Vector{Vector{Float64}}},
+		"NDVI" => Dict{String, Vector{Vector{Float64}}},
+		"Fpar" => Dict{String, Vector{Vector{Float64}}},
+		"Lai" => Dict{String, Vector{Vector{Float64}}},
+	)
+	
+	xlabel="Year"
+end
+
+# ╔═╡ 819a06a9-0561-495b-8fe1-c5901082a31c
+function get_valid_areas()
 	areas = Array{Float32}(undef, (480, 360))
 	read!(areas_file, areas)
 	areas = convert(Array{Union{Missing, Float32}}, areas)
 	replace!(areas, -9999.0 => missing)
-
-#
-	# fpar_2002 = Array{Float32}(undef, (1440, 720, 12))
-	# read!("./modis_data/MOD15A2H.006/MONTH/MOD15A2H.006.Fpar.GLOBAL.30km.2002.NA.mon.bsq.flt", fpar_2002)
-	# fpar_2002 = view(fpar_2002, 961:1440, 41:400, :)
-	# fpar_2002 = convert(Array{Union{Missing, Float32}}, fpar_2002)
-	# replace!(fpar_2002, -9999.0 => missing)
-	# fpar_2002_idx_inv = findall(x -> ismissing(x), fpar_2002[:,:,1])
-	# areas[fpar_2002_idx_inv] .= missing
-	# result = areas .* fpar_2002
-	# fpar_area = sum(skipmissing(areas[regions["Southeast Asia"]]))
-	# fpar_vals = Vector{Float32}()
-
-	# for i = 1:12
-	# 	# Sum all results by month to find monthly average
-	# 	append!(fpar_vals, sum(skipmissing(result[:,:,i][regions["Southeast Asia"]]))/fpar_area)
-	# end
-	# # fpar_2002_mean = sum(skipmissing(fpar_2002.[regions["Southeast Asia"]]))/fpar_area
-	# println(fpar_vals)
-#
-
-	
-
-	# sample_data_idx = findall(x -> !ismissing(x), sample_data)
-	# sample_data_idx_inv = findall(x -> ismissing(x), sample_data)
-	# areas[sample_data_idx_inv] .= missing
+	return areas
 end
 
 # ╔═╡ ef5817b9-22c9-49c7-9f85-61c28556680b
@@ -93,28 +105,26 @@ begin
 		"South Asia" => sasia_idx,
 		"Siberia" => siberia_idx,
 	)
-	println(typeof(regions["Southeast Asia"]))
-	
 end
 
 # ╔═╡ 339bdb5e-ff60-43b2-926c-92d92cc3831e
 # Get mean of every mesh datum in specified area per month
-function mean_value(filepath, areas)
+function get_monthly_vals(filepath, areas)
 	# Create appropriately sized Array and read data into it
 	data = Array{Float32}(undef, (1440, 720, 12))
 	read!(filepath, data)
-	# Restrict data to either Missing or Float32
-	data = convert(Array{Union{Missing, Float32}}, data)
 	# Select only Asia data
 	asia = view(data, 961:1440, 41:400, :)
+	# Restrict data to either Missing or Float32
+	asia = convert(Array{Union{Missing, Float32}}, asia)
 	# Replace -9999 values with missing
 	replace!(asia, -9999 => missing)
 	# Apply Weights
 	result = areas .* asia
 	
-	missing_data = findall(x -> ismissing(x), asia[regions[region_name]])
-	areas[missing_data] .= missing
-	# total_area = sum(skipmissing(areas[regions[region_name]]))
+	# missing_data = findall(x -> ismissing(x), asia[regions[region_name]])
+	# areas[missing_data] .= missing
+	total_area = sum(skipmissing(areas[regions[region_name]]))
 	monthly_vals = Vector{Float32}()
 
 	# For each month in result
@@ -127,7 +137,7 @@ end
 
 # ╔═╡ 43fa3e44-557d-4046-bc5c-2c7cccf782e0
 # Create arrays of averaged data
-function create_averages(product, dataset, unit)
+function create_averages(product, dataset, unit, areas)
 	product_means = Dict(
 			"005"=>Vector{Vector{Float64}}(),
 			"006"=>Vector{Vector{Float64}}(),
@@ -139,51 +149,22 @@ function create_averages(product, dataset, unit)
 
 		# For each version in each year
 		for (k, v) in product_means
-			if k == "005" && product == "MOD15A2H"
-				product = "MOD15A2"
-			elseif k != "005" && occursin("MOD15", product)
-				product = "MOD15A2H"
-			end
 
 			filename = @sprintf("%s.%s.%s.GLOBAL.30km.%s.%s.mon.bsq.flt", product, k, dataset, i, unit)
 			filepath = @sprintf("./modis_data/%s.%s/MONTH/%s", product, k, filename)
 
-			push!(v, mean_value(filepath))
+			push!(v, get_monthly_vals(filepath, areas))
 		end
 	end
 	return product_means
 end
 
-# ╔═╡ 8fd6a047-499f-4ebe-88b7-7658fc13ab08
-# Global Variables
-begin
-	areas_file = "./AsiaMIP_qdeg_area.flt"
-	mask_file = "./AsiaMIP_qdeg_gosat2.byt"
-	sample_file = "./modis_data/MOD11A2.061/MONTH/MOD11A2.061.LST_Day.GLOBAL.30km.2021.degC.mon.bsq.flt"
-	years = range(2000, 2015)
-	xticks = years[1:end]
-	mod11a2 = ["LST_Day", "LST_Night"]
-	mod13a2 = ["EVI", "NDVI"]
-	mod15a2 = ["Fpar", "Lai"]
-	# datasets = ["LST_Day", "LST_Night", "EVI", "NDVI", "Fpar", "Lai"]
-	products = Dict(
-		"MOD11A2" => mod11a2
-		"MOD13A2" => mod13a2
-		"MOD15A2" => mod15a2
-	)
-	xlabel="Year"
-end
-
-# ╔═╡ 4a744ca1-592d-4081-8d81-18d3488253db
-colormap = Makie.wong_colors()
-
-# ╔═╡ 502767df-89ca-46a0-8300-957780bd5640
-# Inter-annual charts
+# ╔═╡ 15829a39-91f8-472d-9d16-b026ef31418b
+# Figure setup
 begin
 	CairoMakie.activate!(type = "svg")
 	f = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1600, 1400))
 	
-
 	ga = f[1, 1] = GridLayout()
 	gb = f[1, 2] = GridLayout()
 	gc = f[2, 1] = GridLayout()
@@ -193,26 +174,32 @@ begin
 	gl = f[0, :] = GridLayout()
 	Label(gl[1,1], region_name, fontsize = 30)
 	grids 	= 	[ga, gb, gc, gd, ge, gf]
+end
+
+# ╔═╡ 4a744ca1-592d-4081-8d81-18d3488253db
+colormap = Makie.wong_colors()
+
+# ╔═╡ 502767df-89ca-46a0-8300-957780bd5640
+# Inter-annual charts
+begin
 
 	# make function to create weight and missing data for each product.
-	for (i, dataset) in enumerate(datasets)
-		if dataset in(mod11a2)
-			product = "MOD11A2"
-			unit = "degC"
-			ylabel = "Annual Mean Deg C"
-		end
-		if dataset in(mod13a2)
-			product = "MOD13A2"
-			unit = "NA"
-			ylabel = "Annual Mean"
-		end
-		if dataset in(mod15a2)
-			product = "MOD15A2H"
-			unit = "NA"
-			ylabel = "Annual Mean"
+	for product in products
+		product[1] == "MOD11A2" ? unit = "degC" : unit = "NA"
+		
+		sample, sample_missing = get_sample_data(product, unit)	
+		areas = get_valid_areas()
+		areas[sample_missing] .= missing
+
+		for dataset in product[2]
+			monthly_vals = create_averages(product[1], dataset, unit, areas)
+			for (key, val) in monthly_vals
+				#have to convert type in dict from vec of vecs to vec of floats?
+				monthly_vals[key] = mean.(val)
+				println(typeof(monthly_vals[key]))
+			end
 		end
 
-		pvs = create_averages(product, dataset, unit)
 		
 		title = dataset
 
@@ -242,7 +229,6 @@ begin
 		
 	end
 	f
-	
 end
 
 # ╔═╡ 2b5ee6e5-2c7e-4391-9132-5eb0a3cdf02e
@@ -1733,9 +1719,11 @@ version = "3.5.0+0"
 # ╠═502767df-89ca-46a0-8300-957780bd5640
 # ╠═43fa3e44-557d-4046-bc5c-2c7cccf782e0
 # ╠═339bdb5e-ff60-43b2-926c-92d92cc3831e
-# ╠═22e8304d-12cc-4fb0-b6ae-4edf7973e870
+# ╠═178b80c2-4239-4866-b115-82de5e0a3f60
+# ╠═819a06a9-0561-495b-8fe1-c5901082a31c
 # ╠═ef5817b9-22c9-49c7-9f85-61c28556680b
 # ╠═8fd6a047-499f-4ebe-88b7-7658fc13ab08
+# ╠═15829a39-91f8-472d-9d16-b026ef31418b
 # ╠═4a744ca1-592d-4081-8d81-18d3488253db
 # ╠═37249420-1167-11ee-10c5-bf8ef74e20cf
 # ╠═2b5ee6e5-2c7e-4391-9132-5eb0a3cdf02e
