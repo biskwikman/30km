@@ -54,6 +54,7 @@ begin
 	areas_file = "./AsiaMIP_qdeg_area.flt"
 	mask_file = "./AsiaMIP_qdeg_gosat2.byt"
 	sample_file = "./modis_data/MOD11A2.061/MONTH/MOD11A2.061.LST_Day.GLOBAL.30km.2021.degC.mon.bsq.flt"
+	xlabel="Year"
 	years = range(2000, 2015)
 	xticks = years[1:end]
 	mod11a2 = ["LST_Day", "LST_Night"]
@@ -66,16 +67,38 @@ begin
 		"MOD15A2H" => mod15a2,
 	)
 
-	averaged_data_all = Dict(
-		"LST_Day" => Dict{String, Vector{Vector{Float64}}}, 
-		"LST_Night" => Dict{String, Vector{Vector{Float64}}},
-		"EVI" => Dict{String, Vector{Vector{Float64}}},
-		"NDVI" => Dict{String, Vector{Vector{Float64}}},
-		"Fpar" => Dict{String, Vector{Vector{Float64}}},
-		"Lai" => Dict{String, Vector{Vector{Float64}}},
+	chart_data = Dict(
+		"LST_Day" => Dict{String, Vector{Float32}}(
+			"005" => [],
+			"006" => [],
+			"061" => [],
+		), 
+		"LST_Night" => Dict{String, Vector{Float32}}(
+			"005" => [],
+			"006" => [],
+			"061" => [],
+		), 
+		"EVI" => Dict{String, Vector{Float32}}(
+			"005" => [],
+			"006" => [],
+			"061" => [],
+		), 
+		"NDVI" => Dict{String, Vector{Float32}}(
+			"005" => [],
+			"006" => [],
+			"061" => [],
+		), 
+		"Fpar" => Dict{String, Vector{Float32}}(
+			"005" => [],
+			"006" => [],
+			"061" => [],
+		), 
+		"Lai" => Dict{String, Vector{Float32}}(
+			"005" => [],
+			"006" => [],
+			"061" => [],
+		), 
 	)
-	
-	xlabel="Year"
 end
 
 # ╔═╡ 819a06a9-0561-495b-8fe1-c5901082a31c
@@ -96,7 +119,6 @@ begin
 	easia_idx = findall(x -> x == 6, regions_array)
 	sasia_idx = findall(x -> x == 7, regions_array)
 	seasia_idx = findall(x -> x in(range(8,9)), regions_array)
-	seasia_idx_inv = findall(x -> !(x in(range(8, 9))), regions_array)
 	regions_idx = [siberia_idx, easia_idx, sasia_idx, seasia_idx]
 
 	regions = Dict(
@@ -109,7 +131,7 @@ end
 
 # ╔═╡ 339bdb5e-ff60-43b2-926c-92d92cc3831e
 # Get mean of every mesh datum in specified area per month
-function get_monthly_vals(filepath, areas)
+function get_monthly_vals(filepath, areas, sample_missing)
 	# Create appropriately sized Array and read data into it
 	data = Array{Float32}(undef, (1440, 720, 12))
 	read!(filepath, data)
@@ -118,12 +140,16 @@ function get_monthly_vals(filepath, areas)
 	# Restrict data to either Missing or Float32
 	asia = convert(Array{Union{Missing, Float32}}, asia)
 	# Replace -9999 values with missing
-	replace!(asia, -9999 => missing)
+	replace!(asia, -9999 => missing)	
+
 	# Apply Weights
-	result = areas .* asia
 	
-	# missing_data = findall(x -> ismissing(x), asia[regions[region_name]])
-	# areas[missing_data] .= missing
+	println(filepath)
+	file_missing = findall(x -> ismissing(x), asia[:,:,1])
+	result = areas .* asia
+
+	areas[file_missing] .= missing
+	
 	total_area = sum(skipmissing(areas[regions[region_name]]))
 	monthly_vals = Vector{Float32}()
 
@@ -137,7 +163,7 @@ end
 
 # ╔═╡ 43fa3e44-557d-4046-bc5c-2c7cccf782e0
 # Create arrays of averaged data
-function create_averages(product, dataset, unit, areas)
+function create_averages(product, dataset, unit, areas, sample_missing)
 	product_means = Dict(
 			"005"=>Vector{Vector{Float64}}(),
 			"006"=>Vector{Vector{Float64}}(),
@@ -153,15 +179,47 @@ function create_averages(product, dataset, unit, areas)
 			filename = @sprintf("%s.%s.%s.GLOBAL.30km.%s.%s.mon.bsq.flt", product, k, dataset, i, unit)
 			filepath = @sprintf("./modis_data/%s.%s/MONTH/%s", product, k, filename)
 
-			push!(v, get_monthly_vals(filepath, areas))
+			push!(v, get_monthly_vals(filepath, areas, sample_missing))
 		end
 	end
 	return product_means
 end
 
+# ╔═╡ 502767df-89ca-46a0-8300-957780bd5640
+# Inter-annual charts
+begin
+	# make function to create weight and missing data for each product.
+	for product in products
+		product[1] == "MOD11A2" ? unit = "degC" : unit = "NA"
+		
+		sample, sample_missing = get_sample_data(product, unit)
+
+		areas = get_valid_areas()
+		areas[sample_missing] .= missing
+
+		for dataset in product[2]
+			monthly_vals = create_averages(product[1], dataset, unit, areas, sample_missing)
+			for (key, val) in monthly_vals
+				chart_data[dataset][key] = mean.(val)
+			end
+		end
+	end
+end
+
 # ╔═╡ 15829a39-91f8-472d-9d16-b026ef31418b
 # Figure setup
 begin
+
+end
+
+# ╔═╡ 4a744ca1-592d-4081-8d81-18d3488253db
+colormap = Makie.wong_colors()
+
+# ╔═╡ eeb70443-23f3-45e9-8557-723ab1c519d6
+# Chart Builder
+begin
+	chart_order = ["LST_Day", "LST_Night", "EVI", "NDVI", "Fpar", "Lai"]
+
 	CairoMakie.activate!(type = "svg")
 	f = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1600, 1400))
 	
@@ -174,59 +232,34 @@ begin
 	gl = f[0, :] = GridLayout()
 	Label(gl[1,1], region_name, fontsize = 30)
 	grids 	= 	[ga, gb, gc, gd, ge, gf]
-end
-
-# ╔═╡ 4a744ca1-592d-4081-8d81-18d3488253db
-colormap = Makie.wong_colors()
-
-# ╔═╡ 502767df-89ca-46a0-8300-957780bd5640
-# Inter-annual charts
-begin
-
-	# make function to create weight and missing data for each product.
-	for product in products
-		product[1] == "MOD11A2" ? unit = "degC" : unit = "NA"
-		
-		sample, sample_missing = get_sample_data(product, unit)	
-		areas = get_valid_areas()
-		areas[sample_missing] .= missing
-
-		for dataset in product[2]
-			monthly_vals = create_averages(product[1], dataset, unit, areas)
-			for (key, val) in monthly_vals
-				#have to convert type in dict from vec of vecs to vec of floats?
-				monthly_vals[key] = mean.(val)
-				println(typeof(monthly_vals[key]))
-			end
-		end
-
+	
+	for (i, dataset) in enumerate(chart_order)
 		
 		title = dataset
 
-		ax = Axis(grids[i][1,1], xlabel=xlabel, ylabel=ylabel, title=title, xticks=xticks, titlesize=20)
+		ax = Axis(grids[i][1,1], xlabel=xlabel, title=title, xticks=xticks, titlesize=20)
 
-		lines!(grids[i][1,1], years, mean.(pvs["005"]), label="v05μ", color=(colormap[1], 0.3))
+		lines!(ax, years, chart_data[dataset]["005"], label="v05μ", color=(colormap[1], 0.3))
 	
-		lines!(grids[i][1,1], years, mean.(pvs["006"]), label="v06μ", color=(colormap[2], 0.3))
+		lines!(ax, years, chart_data[dataset]["006"], label="v06μ", color=(colormap[2], 0.3))
 		
-		lines!(grids[i][1,1], years, mean.(pvs["061"]), label="v61μ", color=(colormap[3], 0.3))
+		lines!(ax, years, chart_data[dataset]["061"], label="v61μ", color=(colormap[3], 0.3))
 
-		df = DataFrame(years = convert.(Float64, years), v05 = mean.(pvs["005"]), v06 = mean.(pvs["006"]), v61 = mean.(pvs["061"]))
+		# df = DataFrame(years = convert.(Float64, years), v05 = mean.(pvs["005"]), v06 = mean.(pvs["006"]), v61 = mean.(pvs["061"]))
 	
-		ols_05 = lm(@formula(v05 ~ years), df)
-		ols_06 = lm(@formula(v06 ~ years), df)
-		ols_61 = lm(@formula(v61 ~ years), df)
+		# ols_05 = lm(@formula(v05 ~ years), df)
+		# ols_06 = lm(@formula(v06 ~ years), df)
+		# ols_61 = lm(@formula(v61 ~ years), df)
 		
-		lines!(grids[i][1,1], df. years, round.(predict(ols_05), digits=5), label="v05 lm", linewidth=3, linestyle=:dash, color=colormap[1])
+		# lines!(grids[i][1,1], df. years, round.(predict(ols_05), digits=5), label="v05 lm", linewidth=3, linestyle=:dash, color=colormap[1])
 		
-		lines!(grids[i][1,1], df.years, round.(predict(ols_06), digits=5), label="v06 lm", linewidth=3, linestyle=:dash, color=colormap[2])
+		# lines!(grids[i][1,1], df.years, round.(predict(ols_06), digits=5), label="v06 lm", linewidth=3, linestyle=:dash, color=colormap[2])
 	
-		lines!(grids[i][1,1], df.years, round.(predict(ols_61), digits=5), label="v61 lm", linewidth=3, linestyle=:dash, color=colormap[3])
+		# lines!(grids[i][1,1], df.years, round.(predict(ols_61), digits=5), label="v61 lm", linewidth=3, linestyle=:dash, color=colormap[3])
 
-		if i == 1
-			axislegend(ax, position = :lt, nbanks=2)
-		end
-		
+		# if i == 1
+		# 	axislegend(ax, position = :lt, nbanks=2)
+		# end
 	end
 	f
 end
@@ -1716,10 +1749,11 @@ version = "3.5.0+0"
 # ╔═╡ Cell order:
 # ╠═8999ecae-84f3-40a1-af18-edc897b3f855
 # ╠═3ffa5b58-f446-46b4-b5ae-3277d0d089e7
+# ╠═eeb70443-23f3-45e9-8557-723ab1c519d6
 # ╠═502767df-89ca-46a0-8300-957780bd5640
-# ╠═43fa3e44-557d-4046-bc5c-2c7cccf782e0
-# ╠═339bdb5e-ff60-43b2-926c-92d92cc3831e
 # ╠═178b80c2-4239-4866-b115-82de5e0a3f60
+# ╠═339bdb5e-ff60-43b2-926c-92d92cc3831e
+# ╠═43fa3e44-557d-4046-bc5c-2c7cccf782e0
 # ╠═819a06a9-0561-495b-8fe1-c5901082a31c
 # ╠═ef5817b9-22c9-49c7-9f85-61c28556680b
 # ╠═8fd6a047-499f-4ebe-88b7-7658fc13ab08
