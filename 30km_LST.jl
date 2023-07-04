@@ -31,9 +31,6 @@ end
 # ╔═╡ 8999ecae-84f3-40a1-af18-edc897b3f855
 @bind region_name Select(["East Asia","Southeast Asia","South Asia","Siberia"])
 
-# ╔═╡ 3ffa5b58-f446-46b4-b5ae-3277d0d089e7
-# save(@sprintf("./output/%s.png", region_name), f)
-
 # ╔═╡ 178b80c2-4239-4866-b115-82de5e0a3f60
 function get_sample_data(product, unit)
 	sample_filepath = @sprintf("./modis_data/%s.005/MONTH", product[1])
@@ -68,32 +65,32 @@ begin
 	)
 
 	chart_data = Dict(
-		"LST_Day" => Dict{String, Vector{Float32}}(
+		"LST_Day" => Dict{String, Vector{Float64}}(
 			"005" => [],
 			"006" => [],
 			"061" => [],
 		), 
-		"LST_Night" => Dict{String, Vector{Float32}}(
+		"LST_Night" => Dict{String, Vector{Float64}}(
 			"005" => [],
 			"006" => [],
 			"061" => [],
 		), 
-		"EVI" => Dict{String, Vector{Float32}}(
+		"EVI" => Dict{String, Vector{Float64}}(
 			"005" => [],
 			"006" => [],
 			"061" => [],
 		), 
-		"NDVI" => Dict{String, Vector{Float32}}(
+		"NDVI" => Dict{String, Vector{Float64}}(
 			"005" => [],
 			"006" => [],
 			"061" => [],
 		), 
-		"Fpar" => Dict{String, Vector{Float32}}(
+		"Fpar" => Dict{String, Vector{Float64}}(
 			"005" => [],
 			"006" => [],
 			"061" => [],
 		), 
-		"Lai" => Dict{String, Vector{Float32}}(
+		"Lai" => Dict{String, Vector{Float64}}(
 			"005" => [],
 			"006" => [],
 			"061" => [],
@@ -218,7 +215,7 @@ colormap = Makie.wong_colors()
 # ╔═╡ eeb70443-23f3-45e9-8557-723ab1c519d6
 # Chart Builder
 begin
-	chart_order = ["LST_Day", "LST_Night", "EVI", "NDVI", "Fpar", "Lai"]
+	chart_order = ["LST_Day", "LST_Night", "EVI", "NDVI", "Lai"]
 
 	CairoMakie.activate!(type = "svg")
 	f = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1600, 1400))
@@ -228,16 +225,17 @@ begin
 	gc = f[2, 1] = GridLayout()
 	gd = f[2, 2] = GridLayout()
 	ge = f[3, 1] = GridLayout()
-	gf = f[3, 2] = GridLayout()
+	# gf = f[3, 2] = GridLayout()
 	gl = f[0, :] = GridLayout()
 	Label(gl[1,1], region_name, fontsize = 30)
-	grids 	= 	[ga, gb, gc, gd, ge, gf]
-	
+	grids 	= 	[ga, gb, gc, gd, ge]
 	for (i, dataset) in enumerate(chart_order)
+		i == 5 ? xlabel = "Years" : xlabel = ""
+			
 		
-		title = dataset
+		chart_order[i] in ["LST_Day", "LST_Night"] ? title = replace(dataset, "_"=>" ") * " (°C)" : title = uppercase(dataset)
 
-		ax = Axis(grids[i][1,1], xlabel=xlabel, title=title, xticks=xticks, titlesize=20)
+		ax = Axis(grids[i][1,1], title=title, xlabel=xlabel, xticks=xticks, titlesize=20)
 
 		lines!(ax, years, chart_data[dataset]["005"], label="v05μ", color=(colormap[1], 0.3))
 	
@@ -245,24 +243,29 @@ begin
 		
 		lines!(ax, years, chart_data[dataset]["061"], label="v61μ", color=(colormap[3], 0.3))
 
-		# df = DataFrame(years = convert.(Float64, years), v05 = mean.(pvs["005"]), v06 = mean.(pvs["006"]), v61 = mean.(pvs["061"]))
+		df = DataFrame(years = convert.(Float64, years), v05 = chart_data[dataset]["005"], v06 = chart_data[dataset]["006"], v61 = chart_data[dataset]["061"])
 	
-		# ols_05 = lm(@formula(v05 ~ years), df)
-		# ols_06 = lm(@formula(v06 ~ years), df)
-		# ols_61 = lm(@formula(v61 ~ years), df)
+		ols_05 = lm(@formula(v05 ~ years), df)
+		ols_06 = lm(@formula(v06 ~ years), df)
+		ols_61 = lm(@formula(v61 ~ years), df)
 		
-		# lines!(grids[i][1,1], df. years, round.(predict(ols_05), digits=5), label="v05 lm", linewidth=3, linestyle=:dash, color=colormap[1])
+		lines!(ax, df.years, round.(predict(ols_05), digits=5), label="v05 lm", linewidth=3, linestyle=:dash, color=colormap[1])
 		
-		# lines!(grids[i][1,1], df.years, round.(predict(ols_06), digits=5), label="v06 lm", linewidth=3, linestyle=:dash, color=colormap[2])
+		lines!(ax, df.years, round.(predict(ols_06), digits=5), label="v06 lm", linewidth=3, linestyle=:dash, color=colormap[2])
 	
-		# lines!(grids[i][1,1], df.years, round.(predict(ols_61), digits=5), label="v61 lm", linewidth=3, linestyle=:dash, color=colormap[3])
+		lines!(ax, df.years, round.(predict(ols_61), digits=5), label="v61 lm", linewidth=3, linestyle=:dash, color=colormap[3])
 
-		# if i == 1
-		# 	axislegend(ax, position = :lt, nbanks=2)
-		# end
+		if i == 5
+			Legend(f[3,2], ax, tellwidth=false, halign=:left)
+		end
 	end
+	
+	
 	f
 end
+
+# ╔═╡ 3ffa5b58-f446-46b4-b5ae-3277d0d089e7
+save(@sprintf("./output/%s.png", region_name), f)
 
 # ╔═╡ 2b5ee6e5-2c7e-4391-9132-5eb0a3cdf02e
 html"""<style>
