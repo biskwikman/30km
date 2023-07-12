@@ -231,19 +231,22 @@ begin
 	grids 	= 	[ga, gb, gc, gd, ge]
 	for (i, dataset) in enumerate(chart_order)
 		i == 5 ? xlabel = "Years" : xlabel = ""
-			
+
+		mean005 = mean(chart_data[dataset]["005"][1:6])
+		mean006 = mean(chart_data[dataset]["006"][1:6])
+		mean061 = mean(chart_data[dataset]["061"][1:6])		
 		
 		chart_order[i] in ["LST_Day", "LST_Night"] ? title = replace(dataset, "_"=>" ") * " (°C)" : title = uppercase(dataset)
 
 		ax = Axis(grids[i][1,1], title=title, xlabel=xlabel, xticks=xticks, titlesize=20)
 
-		lines!(ax, years, chart_data[dataset]["005"], label="v05μ", color=(colormap[1], 0.3))
+		lines!(ax, years, chart_data[dataset]["005"] .- mean005, label="v05μ", color=(colormap[1], 0.3))
 	
-		lines!(ax, years, chart_data[dataset]["006"], label="v06μ", color=(colormap[2], 0.3))
+		lines!(ax, years, chart_data[dataset]["006"] .- mean006, label="v06μ", color=(colormap[2], 0.3))
 		
-		lines!(ax, years, chart_data[dataset]["061"], label="v61μ", color=(colormap[3], 0.3))
+		lines!(ax, years, chart_data[dataset]["061"] .- mean061, label="v61μ", color=(colormap[3], 0.3))
 
-		df = DataFrame(years = convert.(Float64, years), v05 = chart_data[dataset]["005"], v06 = chart_data[dataset]["006"], v61 = chart_data[dataset]["061"])
+		df = DataFrame(years = convert.(Float64, years), v05 = chart_data[dataset]["005"] .- mean005, v06 = chart_data[dataset]["006"] .- mean006, v61 = chart_data[dataset]["061"] .- mean061)
 	
 		ols_05 = lm(@formula(v05 ~ years), df)
 		ols_06 = lm(@formula(v06 ~ years), df)
@@ -304,7 +307,7 @@ PlutoUI = "~0.7.51"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.1"
+julia_version = "1.9.2"
 manifest_format = "2.0"
 project_hash = "06a55b22854f145897061ef47fd2c2d0ffdba84a"
 
@@ -470,7 +473,7 @@ weakdeps = ["Dates", "LinearAlgebra"]
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "1.0.2+0"
+version = "1.0.5+0"
 
 [[deps.ConstructionBase]]
 deps = ["LinearAlgebra"]
@@ -1201,7 +1204,7 @@ version = "0.42.2+0"
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-version = "1.9.0"
+version = "1.9.2"
 
 [[deps.PkgVersion]]
 deps = ["Pkg"]
