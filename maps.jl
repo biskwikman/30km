@@ -4,52 +4,15 @@
 using Markdown
 using InteractiveUtils
 
-# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
-macro bind(def, element)
-    quote
-        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
-        local el = $(esc(element))
-        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
-        el
-    end
-end
-
-# ╔═╡ 37249420-1167-11ee-10c5-bf8ef74e20cf
+# ╔═╡ b7cede9c-9ccb-4e6e-9e97-d85f1d4c9907
 begin
-	using UrlDownload
 	using Printf
-	using Statistics
 	using CairoMakie
-	using Dates
-	using HypothesisTests
-	using PlutoUI
-	# using GLM
-	using DataFrames
-	using Makie.Colors
-	using ColorSchemes
 	using MLJ
 	import MLJScikitLearnInterface
-
 end
 
-# ╔═╡ 8999ecae-84f3-40a1-af18-edc897b3f855
-@bind region_name Select(["East Asia","Southeast Asia","South Asia","Siberia"])
-
-# ╔═╡ 178b80c2-4239-4866-b115-82de5e0a3f60
-function get_sample_data(product, unit)
-	sample_filepath = @sprintf("./modis_data/%s.005/MONTH", product[1])
-	sample_filename = @sprintf("%s/%s.005.%s.GLOBAL.30km.2001.%s.mon.bsq.flt", sample_filepath, product[1], product[2][1], unit)
-	
-	prod_sample = Array{Float32}(undef, 1440, 720)
-	read!(sample_filename, prod_sample)
-	prod_sample = view(prod_sample, 961:1440, 41:400)
-	prod_sample = convert(Array{Union{Missing, Float32}}, prod_sample)
-	replace!(prod_sample, -9999.0 => missing)
-	prod_missing_areas = findall(x -> ismissing(x), prod_sample)
-	return prod_sample, prod_missing_areas
-end
-
-# ╔═╡ 8fd6a047-499f-4ebe-88b7-7658fc13ab08
+# ╔═╡ c3ff0e74-21f8-11ee-0595-15f127cac0ec
 # Global Variables
 begin
 	areas_file = "./AsiaMIP_qdeg_area.flt"
@@ -58,6 +21,7 @@ begin
 	xlabel="Year"
 	years = range(2000, 2015)
 	xticks = years[1:end]
+	versions = ["005", "006", "061"]
 	mod11a2 = ["LST_Day", "LST_Night"]
 	mod13a2 = ["EVI", "NDVI"]
 	mod15a2 = ["Fpar", "Lai"]
@@ -102,7 +66,61 @@ begin
 	)
 end
 
-# ╔═╡ 819a06a9-0561-495b-8fe1-c5901082a31c
+# ╔═╡ b178b88a-a67f-48d5-9bca-d31521a1b68d
+begin
+	product = "MOD13A2"
+	dataset = "EVI"
+	product == "MOD11A2" ? unit = "degC" : unit = "NA"
+
+	all_versions = Array{Float32}(undef, (480, 360, 12, 16, 3))
+	for (iv, version) in enumerate(versions)
+		all_months = Array{Float32}(undef, (480, 360, 12, 16))
+		for (i, year) in enumerate(years)
+			year = string(year)
+			filename = @sprintf("%s.%s.%s.GLOBAL.30km.%s.%s.mon.bsq.flt", product, version, dataset, year, unit)
+			filepath = @sprintf("./modis_data/%s.%s/MONTH/%s", product, version, filename)
+			
+			data = Array{Float32}(undef, (1440, 720, 12))
+			read!(filepath, data)
+			data = view(data, 961:1440, 41:400, :)
+			data = reverse(data, dims=2)
+			
+			all_months[:,:,:,i] = data
+		end
+		all_versions[:,:,:,:,iv] = all_months
+	end
+	all_versions = convert(Array{Union{Missing, Float32}}, all_versions)
+	replace!(all_versions, -9999 => missing)
+end
+
+# ╔═╡ 5b25701c-b802-4a1c-adc7-6a9b9f033525
+heatmap(all_versions[:,:,1,16,3])
+
+# ╔═╡ 13d4496d-372e-4e5b-b263-48aa7cc8fd4b
+# Create arrays of averaged data
+function create_averages(product, dataset, unit, areas, sample_missing)
+	product_means = Dict(
+			"005"=>Vector{Vector{Float64}}(),
+			"006"=>Vector{Vector{Float64}}(),
+			"061"=>Vector{Vector{Float64}}(),
+	)
+	
+	# for each year
+	for i in string.(collect(years))
+
+		# For each version in each year
+		for (k, v) in product_means
+
+			filename = @sprintf("%s.%s.%s.GLOBAL.30km.%s.%s.mon.bsq.flt", product, k, dataset, i, unit)
+			filepath = @sprintf("./modis_data/%s.%s/MONTH/%s", product, k, filename)
+
+			# push!(v, get_monthly_vals(filepath, areas, sample_missing))
+		end
+	end
+	return product_means
+end
+
+# ╔═╡ 0903d2e8-b084-4c7c-9c5a-3406d86b4f2f
 function get_valid_areas()
 	areas = Array{Float32}(undef, (480, 360))
 	read!(areas_file, areas)
@@ -111,7 +129,7 @@ function get_valid_areas()
 	return areas
 end
 
-# ╔═╡ ef5817b9-22c9-49c7-9f85-61c28556680b
+# ╔═╡ fa13a69c-d1de-417c-8b50-3e67956812a6
 # Get Cartesian Indices for regions
 begin
 	regions_array = Array{UInt8}(undef, (480, 360))
@@ -130,7 +148,7 @@ begin
 	)
 end
 
-# ╔═╡ 339bdb5e-ff60-43b2-926c-92d92cc3831e
+# ╔═╡ bbb3ee9a-4bcd-421d-9f3c-1812f1667328
 # Get mean of every mesh datum in specified area per month
 function get_monthly_vals(filepath, areas, sample_missing)
 	# Create appropriately sized Array and read data into it
@@ -157,167 +175,33 @@ function get_monthly_vals(filepath, areas, sample_missing)
 	return monthly_vals
 end
 
-# ╔═╡ 43fa3e44-557d-4046-bc5c-2c7cccf782e0
-# Create arrays of averaged data
-function create_averages(product, dataset, unit, areas, sample_missing)
-	product_means = Dict(
-			"005"=>Vector{Vector{Float64}}(),
-			"006"=>Vector{Vector{Float64}}(),
-			"061"=>Vector{Vector{Float64}}(),
-	)
-	
-	# for each year
-	for i in string.(collect(years))
-
-		# For each version in each year
-		for (k, v) in product_means
-
-			filename = @sprintf("%s.%s.%s.GLOBAL.30km.%s.%s.mon.bsq.flt", product, k, dataset, i, unit)
-			filepath = @sprintf("./modis_data/%s.%s/MONTH/%s", product, k, filename)
-
-			push!(v, get_monthly_vals(filepath, areas, sample_missing))
-		end
-	end
-	return product_means
-end
-
-# ╔═╡ 502767df-89ca-46a0-8300-957780bd5640
-# Inter-annual charts
-begin
-	# make function to create weight and missing data for each product.
-	for product in products
-		product[1] == "MOD11A2" ? unit = "degC" : unit = "NA"
-		
-		sample, sample_missing = get_sample_data(product, unit)
-
-		areas = get_valid_areas()
-		areas[sample_missing] .= missing
-
-		for dataset in product[2]
-			monthly_vals = create_averages(product[1], dataset, unit, areas, sample_missing)
-			for (key, val) in monthly_vals
-				chart_data[dataset][key] = mean.(val)
-			end
-		end
-	end
-end
-
-# ╔═╡ 4a744ca1-592d-4081-8d81-18d3488253db
-colormap = Makie.wong_colors()
-
-# ╔═╡ eeb70443-23f3-45e9-8557-723ab1c519d6
-# Chart Builder
-begin
-
-	TheilSenRegressor = @load TheilSenRegressor pkg=MLJScikitLearnInterface
-	ts_regr = TheilSenRegressor()
-	
-	chart_order = ["LST_Day", "LST_Night", "EVI", "NDVI", "Lai"]
-
-	CairoMakie.activate!(type = "svg")
-	f = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1600, 1400))
-	
-	ga = f[1, 1] = GridLayout()
-	gb = f[1, 2] = GridLayout()
-	gc = f[2, 1] = GridLayout()
-	gd = f[2, 2] = GridLayout()
-	ge = f[3, 1] = GridLayout()
-	# gf = f[3, 2] = GridLayout()
-	gl = f[0, :] = GridLayout()
-	Label(gl[1,1], region_name, fontsize = 30)
-	grids 	= 	[ga, gb, gc, gd, ge]
-	for (i, dataset) in enumerate(chart_order)
-		i == 5 ? xlabel = "Years" : xlabel = ""
-
-		mean005 = mean(chart_data[dataset]["005"][1:6])
-		mean006 = mean(chart_data[dataset]["006"][1:6])
-		mean061 = mean(chart_data[dataset]["061"][1:6])		
-		
-		chart_order[i] in ["LST_Day", "LST_Night"] ? title = replace(dataset, "_"=>" ") * " (°C)" : title = uppercase(dataset)
-
-		ax = Axis(grids[i][1,1], title=title, xlabel=xlabel, xticks=xticks, titlesize=20)
-
-		lines!(ax, years, chart_data[dataset]["005"] .- mean005, label="v05μ", color=(colormap[1], 0.3))
-	
-		lines!(ax, years, chart_data[dataset]["006"] .- mean006, label="v06μ", color=(colormap[2], 0.3))
-		
-		lines!(ax, years, chart_data[dataset]["061"] .- mean061, label="v61μ", color=(colormap[3], 0.3))
-
-		df = DataFrame(
-			# years = convert.(Float64, years),
-			years = years,
-			v05 = chart_data[dataset]["005"] .- mean005,
-			# v06 = chart_data[dataset]["006"] .- mean006,
-			# v61 = chart_data[dataset]["061"] .- mean061,
-		)
-	
-		# ols_05 = lm(@formula(v05 ~ years), df)
-		# ols_06 = lm(@formula(v06 ~ years), df)
-		# ols_61 = lm(@formula(v61 ~ years), df)
-
-		println(typeof(df.years))
-		ts_05 = machine(ts_regr, df.years, df.v05)
-		
-		# lines!(ax, df.years, round.(predict(ts_05), digits=5), label="v05 lm", linewidth=3, linestyle=:dash, color=colormap[1])
-		
-		# lines!(ax, df.years, round.(predict(ols_06), digits=5), label="v06 lm", linewidth=3, linestyle=:dash, color=colormap[2])
-	
-		# lines!(ax, df.years, round.(predict(ols_61), digits=5), label="v61 lm", linewidth=3, linestyle=:dash, color=colormap[3])
-
-		# if i == 5
-			# Legend(f[3,2], ax, tellwidth=false, halign=:left)
-		# end
-	end
-	
-	
-	# f
-end
-
-# ╔═╡ 3ffa5b58-f446-46b4-b5ae-3277d0d089e7
-save(@sprintf("./output/%s.png", region_name), f)
-
-# ╔═╡ 2b5ee6e5-2c7e-4391-9132-5eb0a3cdf02e
+# ╔═╡ 6bb1c85b-bd07-4d6a-967e-d89b80d64626
 html"""<style>
 main {
-    max-width: 82%;
+    max-width: 75%;
     margin-left: 1%;
     margin-right: 2% !important;
 }
 """
 
-# ╔═╡ 618d6205-698d-4c87-a9d1-39e13be0b601
+# ╔═╡ 3badc18c-a320-441a-b03e-51e8adc8d525
 begin
-	iris = DataFrames.DataFrame(load_iris());
-	y, X = unpack(iris, ==(:target); rng=123);
-	X
+	TheilSenRegressor = @load TheilSenRegressor pkg=MLJScikitLearnInterface
+	ts_regr = TheilSenRegressor()
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
-ColorSchemes = "35d6a980-a343-548e-a6ea-1d62b119f2f4"
-DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
-Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
-HypothesisTests = "09f84164-cd44-5f33-b23f-e6b0d136a0d5"
 MLJ = "add582a8-e3ab-11e8-2d5e-e98b27df1bc7"
 MLJScikitLearnInterface = "5ae90465-5518-4432-b9d2-8a1def2f0cab"
-Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
-PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
-Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
-UrlDownload = "856ac37a-3032-4c1c-9122-f86d88358c8b"
 
 [compat]
 CairoMakie = "~0.10.6"
-ColorSchemes = "~3.21.0"
-DataFrames = "~1.6.0"
-HypothesisTests = "~0.11.0"
 MLJ = "~0.19.2"
 MLJScikitLearnInterface = "~0.4.0"
-Makie = "~0.19.6"
-PlutoUI = "~0.7.51"
-UrlDownload = "~1.0.1"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -326,7 +210,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.9.2"
 manifest_format = "2.0"
-project_hash = "bba1d8904aac1c91a4f4dafc7201735501a2ac60"
+project_hash = "85a6978decc7dd6d874a34b2fd86d5f742594ec5"
 
 [[deps.ARFFFiles]]
 deps = ["CategoricalArrays", "Dates", "Parsers", "Tables"]
@@ -343,12 +227,6 @@ weakdeps = ["ChainRulesCore"]
 
     [deps.AbstractFFTs.extensions]
     AbstractFFTsChainRulesCoreExt = "ChainRulesCore"
-
-[[deps.AbstractPlutoDingetjes]]
-deps = ["Pkg"]
-git-tree-sha1 = "8eaf9f1b4921132a4cff3f36a1d9ba923b14a481"
-uuid = "6e696c72-6542-2067-7265-42206c756150"
-version = "1.1.4"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "faa260e4cb5aba097a73fab382dd4b5819d8ec8c"
@@ -447,13 +325,18 @@ deps = ["DataAPI", "Future", "Missings", "Printf", "Requires", "Statistics", "Un
 git-tree-sha1 = "1568b28f91293458345dabba6a5ea3f183250a61"
 uuid = "324d7699-5711-5eae-9e2f-1d82baa6b597"
 version = "0.10.8"
-weakdeps = ["JSON", "RecipesBase", "SentinelArrays", "StructTypes"]
 
     [deps.CategoricalArrays.extensions]
     CategoricalArraysJSONExt = "JSON"
     CategoricalArraysRecipesBaseExt = "RecipesBase"
     CategoricalArraysSentinelArraysExt = "SentinelArrays"
     CategoricalArraysStructTypesExt = "StructTypes"
+
+    [deps.CategoricalArrays.weakdeps]
+    JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+    RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
+    SentinelArrays = "91c51154-3ec4-41a3-a24f-3f23e20d615c"
+    StructTypes = "856f2bd8-1eba-4b0a-8007-ebc267875bd4"
 
 [[deps.CategoricalDistributions]]
 deps = ["CategoricalArrays", "Distributions", "Missings", "OrderedCollections", "Random", "ScientificTypes"]
@@ -514,11 +397,6 @@ git-tree-sha1 = "08c8b6831dc00bfea825826be0bc8336fc369860"
 uuid = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
 version = "1.0.2"
 
-[[deps.CommonSolve]]
-git-tree-sha1 = "0eee5eb66b1cf62cd6ad1b460238e60e4b09400c"
-uuid = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
-version = "0.2.4"
-
 [[deps.Compat]]
 deps = ["UUIDs"]
 git-tree-sha1 = "4e88377ae7ebeaf29a047aa1ee40826e0b708a5d"
@@ -541,9 +419,9 @@ version = "0.3.2"
 
 [[deps.ConcurrentUtilities]]
 deps = ["Serialization", "Sockets"]
-git-tree-sha1 = "96d823b94ba8d187a6d8f0826e731195a74b90e9"
+git-tree-sha1 = "5372dbbf8f0bdb8c700db5367132925c0771ef7e"
 uuid = "f0e56b4a-5159-44fe-b623-3e5288b988bb"
-version = "2.2.0"
+version = "2.2.1"
 
 [[deps.CondaPkg]]
 deps = ["JSON3", "Markdown", "MicroMamba", "Pidfile", "Pkg", "TOML"]
@@ -576,12 +454,6 @@ version = "4.1.1"
 git-tree-sha1 = "8da84edb865b0b5b0100c0666a9bc9a0b71c553c"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
 version = "1.15.0"
-
-[[deps.DataFrames]]
-deps = ["Compat", "DataAPI", "Future", "InlineStrings", "InvertedIndices", "IteratorInterfaceExtensions", "LinearAlgebra", "Markdown", "Missings", "PooledArrays", "PrecompileTools", "PrettyTables", "Printf", "REPL", "Random", "Reexport", "SentinelArrays", "SortingAlgorithms", "Statistics", "TableTraits", "Tables", "Unicode"]
-git-tree-sha1 = "089d29c0fc00a190661517e4f3cba5dcb3fd0c08"
-uuid = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
-version = "1.6.0"
 
 [[deps.DataStructures]]
 deps = ["Compat", "InteractiveUtils", "OrderedCollections"]
@@ -814,9 +686,9 @@ version = "1.0.2"
 
 [[deps.HTTP]]
 deps = ["Base64", "CodecZlib", "ConcurrentUtilities", "Dates", "ExceptionUnwrapping", "Logging", "LoggingExtras", "MbedTLS", "NetworkOptions", "OpenSSL", "Random", "SimpleBufferStream", "Sockets", "URIs", "UUIDs"]
-git-tree-sha1 = "c206f345c5cee9da7bdf87cb540085a43acffca4"
+git-tree-sha1 = "cb56ccdd481c0dd7f975ad2b3b62d9eda088f7e2"
 uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-version = "1.9.11"
+version = "1.9.14"
 
 [[deps.HarfBuzz_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "Graphite2_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Pkg"]
@@ -826,33 +698,9 @@ version = "2.8.1+1"
 
 [[deps.HypergeometricFunctions]]
 deps = ["DualNumbers", "LinearAlgebra", "OpenLibm_jll", "SpecialFunctions"]
-git-tree-sha1 = "ce7ea9cc5db29563b1fe20196b6d23ab3b111384"
+git-tree-sha1 = "a6105a85261f35b45aeb394dc917a03d907ec3c3"
 uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
-version = "0.3.18"
-
-[[deps.Hyperscript]]
-deps = ["Test"]
-git-tree-sha1 = "8d511d5b81240fc8e6802386302675bdf47737b9"
-uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
-version = "0.0.4"
-
-[[deps.HypertextLiteral]]
-deps = ["Tricks"]
-git-tree-sha1 = "c47c5fa4c5308f27ccaac35504858d8914e102f9"
-uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
-version = "0.9.4"
-
-[[deps.HypothesisTests]]
-deps = ["Combinatorics", "Distributions", "LinearAlgebra", "Printf", "Random", "Rmath", "Roots", "Statistics", "StatsAPI", "StatsBase"]
-git-tree-sha1 = "4b5d5ba51f5f473737ed9de6d8a7aa190ad8c72f"
-uuid = "09f84164-cd44-5f33-b23f-e6b0d136a0d5"
-version = "0.11.0"
-
-[[deps.IOCapture]]
-deps = ["Logging", "Random"]
-git-tree-sha1 = "d75853a0bdbfb1ac815478bacd89cd27b550ace6"
-uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
-version = "0.2.3"
+version = "0.3.19"
 
 [[deps.ImageAxes]]
 deps = ["AxisArrays", "ImageBase", "ImageCore", "Reexport", "SimpleTraits"]
@@ -899,12 +747,6 @@ version = "1.0.0"
 git-tree-sha1 = "5cd07aab533df5170988219191dfad0519391428"
 uuid = "d25df0c9-e2be-5dd7-82c8-3ad0b3e990b9"
 version = "0.1.3"
-
-[[deps.InlineStrings]]
-deps = ["Parsers"]
-git-tree-sha1 = "9cc2baf75c6d09f9da536ddf58eb2f29dedaf461"
-uuid = "842dd82b-1e85-43dc-bf29-5d0ee9dffc48"
-version = "1.4.0"
 
 [[deps.IntelOpenMP_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1126,11 +968,6 @@ deps = ["CategoricalArrays", "Markdown", "Statistics"]
 git-tree-sha1 = "44a7bfeb7b5eb9386a62b9cccc6e21f406c15bea"
 uuid = "30fc2ffe-d236-52d8-8643-a9d8f7c094a7"
 version = "0.10.0"
-
-[[deps.MIMEs]]
-git-tree-sha1 = "65f28ad4b594aebe22157d6fac869786a255b7eb"
-uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
-version = "0.1.4"
 
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "Pkg"]
@@ -1432,22 +1269,10 @@ git-tree-sha1 = "f92e1315dadf8c46561fb9396e525f7200cdc227"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
 version = "1.3.5"
 
-[[deps.PlutoUI]]
-deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
-git-tree-sha1 = "b478a748be27bd2f2c73a7690da219d0844db305"
-uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.51"
-
 [[deps.PolygonOps]]
 git-tree-sha1 = "77b3d3605fc1cd0b42d95eba87dfcd2bf67d5ff6"
 uuid = "647866c9-e3ac-4575-94e7-e3d426903924"
 version = "0.1.2"
-
-[[deps.PooledArrays]]
-deps = ["DataAPI", "Future"]
-git-tree-sha1 = "a6062fe4063cdafe78f4a0a81cfffb89721b30e7"
-uuid = "2dfb63ee-cc39-5dd5-95bd-886bf059d720"
-version = "1.4.2"
 
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
@@ -1570,22 +1395,6 @@ git-tree-sha1 = "6ed52fdd3382cf21947b15e8870ac0ddbff736da"
 uuid = "f50d1b31-88e8-58de-be2c-1cc44531875f"
 version = "0.4.0+0"
 
-[[deps.Roots]]
-deps = ["ChainRulesCore", "CommonSolve", "Printf", "Setfield"]
-git-tree-sha1 = "de432823e8aab4dd1a985be4be768f95acf152d4"
-uuid = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
-version = "2.0.17"
-
-    [deps.Roots.extensions]
-    RootsForwardDiffExt = "ForwardDiff"
-    RootsIntervalRootFindingExt = "IntervalRootFinding"
-    RootsSymPyExt = "SymPy"
-
-    [deps.Roots.weakdeps]
-    ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
-    IntervalRootFinding = "d2bf35a9-74e0-55ec-b149-d360ff49b807"
-    SymPy = "24249f21-da20-56a4-8eb1-6a02cf4ae2e6"
-
 [[deps.SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 version = "0.7.0"
@@ -1618,12 +1427,6 @@ deps = ["Dates"]
 git-tree-sha1 = "30449ee12237627992a99d5e30ae63e4d78cd24a"
 uuid = "6c6a2e73-6563-6170-7368-637461726353"
 version = "1.2.0"
-
-[[deps.SentinelArrays]]
-deps = ["Dates", "Random"]
-git-tree-sha1 = "04bdff0b09c65ff3e06a05e3eb7b120223da3d39"
-uuid = "91c51154-3ec4-41a3-a24f-3f23e20d615c"
-version = "1.4.0"
 
 [[deps.Serialization]]
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
@@ -1719,9 +1522,9 @@ weakdeps = ["Statistics"]
     StaticArraysStatisticsExt = "Statistics"
 
 [[deps.StaticArraysCore]]
-git-tree-sha1 = "6b7ba252635a5eff6a0b0664a41ee140a1c9e72a"
+git-tree-sha1 = "1d5708d926c76a505052d0d24a846d5da08bc3a4"
 uuid = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
-version = "1.4.0"
+version = "1.4.1"
 
 [[deps.StatisticalTraits]]
 deps = ["ScientificTypesBase"]
@@ -1830,11 +1633,6 @@ git-tree-sha1 = "9a6ae7ed916312b41236fcef7e0af564ef934769"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 version = "0.9.13"
 
-[[deps.Tricks]]
-git-tree-sha1 = "aadb748be58b492045b4f56166b5188aa63ce549"
-uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
-version = "0.1.7"
-
 [[deps.TriplotBase]]
 git-tree-sha1 = "4d4ed7f294cda19382ff7de4c137d24d16adc89b"
 uuid = "981d1d27-644d-49a2-9326-4793e63143c3"
@@ -1872,12 +1670,6 @@ version = "0.4.1"
 git-tree-sha1 = "c81331b3b2e60a982be57c046ec91f599ede674a"
 uuid = "e17b2a0c-0bdf-430a-bd0c-3a23cae4ff39"
 version = "1.0.0"
-
-[[deps.UrlDownload]]
-deps = ["HTTP", "ProgressMeter"]
-git-tree-sha1 = "758aeefcf0bfdd04cd88e6e3bc9feb9e8c7d6d70"
-uuid = "856ac37a-3032-4c1c-9122-f86d88358c8b"
-version = "1.0.1"
 
 [[deps.WoodburyMatrices]]
 deps = ["LinearAlgebra", "SparseArrays"]
@@ -2027,19 +1819,15 @@ version = "3.5.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═8999ecae-84f3-40a1-af18-edc897b3f855
-# ╠═3ffa5b58-f446-46b4-b5ae-3277d0d089e7
-# ╠═eeb70443-23f3-45e9-8557-723ab1c519d6
-# ╠═502767df-89ca-46a0-8300-957780bd5640
-# ╠═178b80c2-4239-4866-b115-82de5e0a3f60
-# ╠═339bdb5e-ff60-43b2-926c-92d92cc3831e
-# ╠═43fa3e44-557d-4046-bc5c-2c7cccf782e0
-# ╠═819a06a9-0561-495b-8fe1-c5901082a31c
-# ╠═ef5817b9-22c9-49c7-9f85-61c28556680b
-# ╠═8fd6a047-499f-4ebe-88b7-7658fc13ab08
-# ╠═4a744ca1-592d-4081-8d81-18d3488253db
-# ╠═37249420-1167-11ee-10c5-bf8ef74e20cf
-# ╠═2b5ee6e5-2c7e-4391-9132-5eb0a3cdf02e
-# ╠═618d6205-698d-4c87-a9d1-39e13be0b601
+# ╠═5b25701c-b802-4a1c-adc7-6a9b9f033525
+# ╠═b178b88a-a67f-48d5-9bca-d31521a1b68d
+# ╠═bbb3ee9a-4bcd-421d-9f3c-1812f1667328
+# ╠═13d4496d-372e-4e5b-b263-48aa7cc8fd4b
+# ╠═0903d2e8-b084-4c7c-9c5a-3406d86b4f2f
+# ╠═fa13a69c-d1de-417c-8b50-3e67956812a6
+# ╠═c3ff0e74-21f8-11ee-0595-15f127cac0ec
+# ╠═6bb1c85b-bd07-4d6a-967e-d89b80d64626
+# ╠═3badc18c-a320-441a-b03e-51e8adc8d525
+# ╠═b7cede9c-9ccb-4e6e-9e97-d85f1d4c9907
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
