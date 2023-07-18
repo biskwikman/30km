@@ -10,6 +10,21 @@ begin
 	using CairoMakie
 	using MLJ
 	import MLJScikitLearnInterface
+	using Statistics
+end
+
+# ╔═╡ ed7c654d-1f22-452c-b213-f8b9ca0e8624
+[0 0 0; 0 0 0]
+
+# ╔═╡ ab06b6b1-d73f-4f60-9409-9290472e6e5c
+zeros(1, 2)
+
+# ╔═╡ 3fac590c-190a-48b8-894c-3c020d8c7453
+begin
+	A = zeros(1,2,3)
+	for i in eachslice(A, dims=3)
+		println(i)
+	end
 end
 
 # ╔═╡ c3ff0e74-21f8-11ee-0595-15f127cac0ec
@@ -94,7 +109,33 @@ begin
 end
 
 # ╔═╡ 5b25701c-b802-4a1c-adc7-6a9b9f033525
-heatmap(all_versions[:,:,1,16,3])
+heatmap(all_versions[:,:,6,16,3])
+
+# ╔═╡ 8a8c8864-8387-4ca4-8851-4b0cd2e2ff9f
+begin
+	yearly_aves = Array{Union{Missing, Float32}}(undef, (480, 360, 16, 3))
+	for v in 1:3
+		for y in 1:16
+			year = Array{Union{Missing, Float32}}(undef, (480, 360))
+			mean!(year, all_versions[:,:,:,y,v])
+			yearly_aves[:,:,y, v] = year
+		end
+	end
+end
+
+# ╔═╡ 6585eddd-b047-43ea-8eca-09712a8c360e
+heatmap(yearly_aves[:, :, 16, 1])
+
+# ╔═╡ cba30637-41d6-4722-b437-096bbf1e6145
+begin
+	for i in eachslice(yearly_aves[210:211, 210:21,:,1], dims=1)
+		println(i)
+
+		# mach = machine(ts_regr, 2000:2015, i)
+		# fit!(mach, verbosity=0)
+		# println(mach)
+	end
+end
 
 # ╔═╡ 13d4496d-372e-4e5b-b263-48aa7cc8fd4b
 # Create arrays of averaged data
@@ -197,6 +238,7 @@ CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 MLJ = "add582a8-e3ab-11e8-2d5e-e98b27df1bc7"
 MLJScikitLearnInterface = "5ae90465-5518-4432-b9d2-8a1def2f0cab"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
 CairoMakie = "~0.10.6"
@@ -210,7 +252,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.9.2"
 manifest_format = "2.0"
-project_hash = "85a6978decc7dd6d874a34b2fd86d5f742594ec5"
+project_hash = "a1e58fc67f501f3e3c50cd2452f22c34d4f09b28"
 
 [[deps.ARFFFiles]]
 deps = ["CategoricalArrays", "Dates", "Parsers", "Tables"]
@@ -1820,6 +1862,12 @@ version = "3.5.0+0"
 
 # ╔═╡ Cell order:
 # ╠═5b25701c-b802-4a1c-adc7-6a9b9f033525
+# ╠═6585eddd-b047-43ea-8eca-09712a8c360e
+# ╠═ed7c654d-1f22-452c-b213-f8b9ca0e8624
+# ╠═ab06b6b1-d73f-4f60-9409-9290472e6e5c
+# ╠═3fac590c-190a-48b8-894c-3c020d8c7453
+# ╠═cba30637-41d6-4722-b437-096bbf1e6145
+# ╠═8a8c8864-8387-4ca4-8851-4b0cd2e2ff9f
 # ╠═b178b88a-a67f-48d5-9bca-d31521a1b68d
 # ╠═bbb3ee9a-4bcd-421d-9f3c-1812f1667328
 # ╠═13d4496d-372e-4e5b-b263-48aa7cc8fd4b

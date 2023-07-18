@@ -261,30 +261,13 @@ begin
 		fit!(ts_machine_06, verbosity=0)
 		regr06 = predict_mode(ts_machine_06)
 	
-		
 		ts_machine_61 = machine(ts_regr, df[:, [:years]], df.v61)
 		fit!(ts_machine_61, verbosity=0)
-		regr61 = predict_mode(ts_machine_61)
-		
-		slopes = []
-		for i in 1:15
-			append!(slopes, df.v61[i+1] - df.v61[i])
-		end
-		sen = median(slopes)
-		println(sen)
-		println(mk_original_test(df.v61))
-		#HOW TO FIND INTERCEPT IN NUMPY
-		intercept = median(df.v61) - median(1:16) * sen
-		sens61 = range(intercept, length=16, step=sen)
-		println(sens61)
-				
-		
+		regr61 = predict_mode(ts_machine_61)	
 		
 		lines!(ax, df.years, round.(regr05, digits=5), label="v05 lm", linewidth=3, linestyle=:dash, color=colormap[1])
-		
 		lines!(ax, df.years, round.(regr06, digits=5), label="v06 lm", linewidth=3, linestyle=:dash, color=colormap[2])
-	
-		lines!(ax, df.years, round.(sens61, digits=5), label="v61 lm", linewidth=3, linestyle=:dash, color=colormap[3])
+		lines!(ax, df.years, round.(regr61, digits=5), label="v61 lm", linewidth=3, linestyle=:dash, color=colormap[3])
 
 		row = ceil(i / 2)
 		row = convert(Int, row)
