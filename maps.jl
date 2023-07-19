@@ -11,20 +11,39 @@ begin
 	using MLJ
 	import MLJScikitLearnInterface
 	using Statistics
+	using DataFrames
+	using PythonCall
 end
 
-# ╔═╡ ed7c654d-1f22-452c-b213-f8b9ca0e8624
-[0 0 0; 0 0 0]
-
-# ╔═╡ ab06b6b1-d73f-4f60-9409-9290472e6e5c
-zeros(1, 2)
-
-# ╔═╡ 3fac590c-190a-48b8-894c-3c020d8c7453
+# ╔═╡ e7f85df5-fe7c-4273-9602-39c6242b52d5
+# Chart Variables
 begin
-	A = zeros(1,2,3)
-	for i in eachslice(A, dims=3)
-		println(i)
+	xlabels = ["60°E","80°E","100°E","120°E","140°E","160°E","180°E"]
+	years = range(2000, 2015)
+end
+
+# ╔═╡ 13d4496d-372e-4e5b-b263-48aa7cc8fd4b
+# Create arrays of averaged data
+function create_averages(product, dataset, unit, areas, sample_missing)
+	product_means = Dict(
+			"005"=>Vector{Vector{Float64}}(),
+			"006"=>Vector{Vector{Float64}}(),
+			"061"=>Vector{Vector{Float64}}(),
+	)
+	
+	# for each year
+	for i in string.(collect(years))
+
+		# For each version in each year
+		for (k, v) in product_means
+
+			filename = @sprintf("%s.%s.%s.GLOBAL.30km.%s.%s.mon.bsq.flt", product, k, dataset, i, unit)
+			filepath = @sprintf("./modis_data/%s.%s/MONTH/%s", product, k, filename)
+
+			# push!(v, get_monthly_vals(filepath, areas, sample_missing))
+		end
 	end
+	return product_means
 end
 
 # ╔═╡ c3ff0e74-21f8-11ee-0595-15f127cac0ec
@@ -33,8 +52,6 @@ begin
 	areas_file = "./AsiaMIP_qdeg_area.flt"
 	mask_file = "./AsiaMIP_qdeg_gosat2.byt"
 	sample_file = "./modis_data/MOD11A2.061/MONTH/MOD11A2.061.LST_Day.GLOBAL.30km.2021.degC.mon.bsq.flt"
-	xlabel="Year"
-	years = range(2000, 2015)
 	xticks = years[1:end]
 	versions = ["005", "006", "061"]
 	mod11a2 = ["LST_Day", "LST_Night"]
@@ -45,39 +62,6 @@ begin
 		"MOD11A2" => mod11a2,
 		"MOD13A2" => mod13a2,
 		"MOD15A2H" => mod15a2,
-	)
-
-	chart_data = Dict(
-		"LST_Day" => Dict{String, Vector{Float64}}(
-			"005" => [],
-			"006" => [],
-			"061" => [],
-		), 
-		"LST_Night" => Dict{String, Vector{Float64}}(
-			"005" => [],
-			"006" => [],
-			"061" => [],
-		), 
-		"EVI" => Dict{String, Vector{Float64}}(
-			"005" => [],
-			"006" => [],
-			"061" => [],
-		), 
-		"NDVI" => Dict{String, Vector{Float64}}(
-			"005" => [],
-			"006" => [],
-			"061" => [],
-		), 
-		"Fpar" => Dict{String, Vector{Float64}}(
-			"005" => [],
-			"006" => [],
-			"061" => [],
-		), 
-		"Lai" => Dict{String, Vector{Float64}}(
-			"005" => [],
-			"006" => [],
-			"061" => [],
-		), 
 	)
 end
 
@@ -108,9 +92,6 @@ begin
 	replace!(all_versions, -9999 => missing)
 end
 
-# ╔═╡ 5b25701c-b802-4a1c-adc7-6a9b9f033525
-heatmap(all_versions[:,:,6,16,3])
-
 # ╔═╡ 8a8c8864-8387-4ca4-8851-4b0cd2e2ff9f
 begin
 	yearly_aves = Array{Union{Missing, Float32}}(undef, (480, 360, 16, 3))
@@ -123,43 +104,8 @@ begin
 	end
 end
 
-# ╔═╡ 6585eddd-b047-43ea-8eca-09712a8c360e
-heatmap(yearly_aves[:, :, 16, 1])
-
-# ╔═╡ cba30637-41d6-4722-b437-096bbf1e6145
-begin
-	for i in eachslice(yearly_aves[210:211, 210:21,:,1], dims=1)
-		println(i)
-
-		# mach = machine(ts_regr, 2000:2015, i)
-		# fit!(mach, verbosity=0)
-		# println(mach)
-	end
-end
-
-# ╔═╡ 13d4496d-372e-4e5b-b263-48aa7cc8fd4b
-# Create arrays of averaged data
-function create_averages(product, dataset, unit, areas, sample_missing)
-	product_means = Dict(
-			"005"=>Vector{Vector{Float64}}(),
-			"006"=>Vector{Vector{Float64}}(),
-			"061"=>Vector{Vector{Float64}}(),
-	)
-	
-	# for each year
-	for i in string.(collect(years))
-
-		# For each version in each year
-		for (k, v) in product_means
-
-			filename = @sprintf("%s.%s.%s.GLOBAL.30km.%s.%s.mon.bsq.flt", product, k, dataset, i, unit)
-			filepath = @sprintf("./modis_data/%s.%s/MONTH/%s", product, k, filename)
-
-			# push!(v, get_monthly_vals(filepath, areas, sample_missing))
-		end
-	end
-	return product_means
-end
+# ╔═╡ 43139cf0-44e6-456b-9134-d262e5a116c6
+yearly_aves[210,210,:,2]
 
 # ╔═╡ 0903d2e8-b084-4c7c-9c5a-3406d86b4f2f
 function get_valid_areas()
@@ -231,19 +177,64 @@ begin
 	ts_regr = TheilSenRegressor()
 end
 
+# ╔═╡ cba30637-41d6-4722-b437-096bbf1e6145
+begin
+	
+	df = DataFrame(years = convert.(Float32, years))
+	trend_array = Array{Union{Missing, Float32}}(undef, (480, 360, 3))
+
+	for (i, a) in enumerate(eachslice(yearly_aves[:,:,:,:], dims=(1,2,4)))
+		if ismissing(sum(a))
+			trend_array[i] = missing
+		else
+			a = convert(Vector{Float32}, a)
+			mach = machine(ts_regr, df[:, [:years]], a)
+			fit!(mach, verbosity=0)
+			slope_array = pyconvert(Vector{Float32}, fitted_params(mach).coef)
+			trend_array[i] = slope_array[1]
+		end
+	end
+end
+
+# ╔═╡ e1058654-51dc-4fa7-9808-7c54011767bf
+begin
+	trend_min = minimum(skipmissing(trend_array))
+	trend_max = maximum(skipmissing(trend_array))
+	print(trend_min)
+end
+
+# ╔═╡ 6585eddd-b047-43ea-8eca-09712a8c360e
+begin
+	fig = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1600, 1400))
+	ax1 = Axis(fig[1,1], title="v05")
+	ax2 = Axis(fig[1,2], title="v06")
+	ax3 = Axis(fig[2,1], title="v61")
+	
+	hm1 = heatmap!(ax1, 60:180, 10:80, trend_array[:,:,1], colorrange=(trend_min, trend_max), colormap=:batlow, title="v05")
+	hm2 = heatmap!(ax2, 60:180, 10:80, trend_array[:,:,2], colorrange=(trend_min, trend_max), colormap=:batlow, title="v06")
+	hm3 = heatmap!(ax3, 60:180, 10:80, trend_array[:,:,3], colorrange=(trend_min, trend_max), colormap=:batlow, title="v61")
+	Colorbar(fig[2,2], hm1, tellwidth=false, halign=:left)
+	Label(fig[0,:], "Annual Change in EVI")
+	fig
+end
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 MLJ = "add582a8-e3ab-11e8-2d5e-e98b27df1bc7"
 MLJScikitLearnInterface = "5ae90465-5518-4432-b9d2-8a1def2f0cab"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
 CairoMakie = "~0.10.6"
+DataFrames = "~1.6.0"
 MLJ = "~0.19.2"
 MLJScikitLearnInterface = "~0.4.0"
+PythonCall = "~0.9.13"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -252,7 +243,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.9.2"
 manifest_format = "2.0"
-project_hash = "a1e58fc67f501f3e3c50cd2452f22c34d4f09b28"
+project_hash = "534c98ed84bfa5f5580a4c8802fc2639250d7530"
 
 [[deps.ARFFFiles]]
 deps = ["CategoricalArrays", "Dates", "Parsers", "Tables"]
@@ -367,18 +358,13 @@ deps = ["DataAPI", "Future", "Missings", "Printf", "Requires", "Statistics", "Un
 git-tree-sha1 = "1568b28f91293458345dabba6a5ea3f183250a61"
 uuid = "324d7699-5711-5eae-9e2f-1d82baa6b597"
 version = "0.10.8"
+weakdeps = ["JSON", "RecipesBase", "SentinelArrays", "StructTypes"]
 
     [deps.CategoricalArrays.extensions]
     CategoricalArraysJSONExt = "JSON"
     CategoricalArraysRecipesBaseExt = "RecipesBase"
     CategoricalArraysSentinelArraysExt = "SentinelArrays"
     CategoricalArraysStructTypesExt = "StructTypes"
-
-    [deps.CategoricalArrays.weakdeps]
-    JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
-    RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
-    SentinelArrays = "91c51154-3ec4-41a3-a24f-3f23e20d615c"
-    StructTypes = "856f2bd8-1eba-4b0a-8007-ebc267875bd4"
 
 [[deps.CategoricalDistributions]]
 deps = ["CategoricalArrays", "Distributions", "Missings", "OrderedCollections", "Random", "ScientificTypes"]
@@ -496,6 +482,12 @@ version = "4.1.1"
 git-tree-sha1 = "8da84edb865b0b5b0100c0666a9bc9a0b71c553c"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
 version = "1.15.0"
+
+[[deps.DataFrames]]
+deps = ["Compat", "DataAPI", "Future", "InlineStrings", "InvertedIndices", "IteratorInterfaceExtensions", "LinearAlgebra", "Markdown", "Missings", "PooledArrays", "PrecompileTools", "PrettyTables", "Printf", "REPL", "Random", "Reexport", "SentinelArrays", "SortingAlgorithms", "Statistics", "TableTraits", "Tables", "Unicode"]
+git-tree-sha1 = "089d29c0fc00a190661517e4f3cba5dcb3fd0c08"
+uuid = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+version = "1.6.0"
 
 [[deps.DataStructures]]
 deps = ["Compat", "InteractiveUtils", "OrderedCollections"]
@@ -789,6 +781,12 @@ version = "1.0.0"
 git-tree-sha1 = "5cd07aab533df5170988219191dfad0519391428"
 uuid = "d25df0c9-e2be-5dd7-82c8-3ad0b3e990b9"
 version = "0.1.3"
+
+[[deps.InlineStrings]]
+deps = ["Parsers"]
+git-tree-sha1 = "9cc2baf75c6d09f9da536ddf58eb2f29dedaf461"
+uuid = "842dd82b-1e85-43dc-bf29-5d0ee9dffc48"
+version = "1.4.0"
 
 [[deps.IntelOpenMP_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1316,6 +1314,12 @@ git-tree-sha1 = "77b3d3605fc1cd0b42d95eba87dfcd2bf67d5ff6"
 uuid = "647866c9-e3ac-4575-94e7-e3d426903924"
 version = "0.1.2"
 
+[[deps.PooledArrays]]
+deps = ["DataAPI", "Future"]
+git-tree-sha1 = "a6062fe4063cdafe78f4a0a81cfffb89721b30e7"
+uuid = "2dfb63ee-cc39-5dd5-95bd-886bf059d720"
+version = "1.4.2"
+
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
 git-tree-sha1 = "9673d39decc5feece56ef3940e5dafba15ba0f81"
@@ -1469,6 +1473,12 @@ deps = ["Dates"]
 git-tree-sha1 = "30449ee12237627992a99d5e30ae63e4d78cd24a"
 uuid = "6c6a2e73-6563-6170-7368-637461726353"
 version = "1.2.0"
+
+[[deps.SentinelArrays]]
+deps = ["Dates", "Random"]
+git-tree-sha1 = "04bdff0b09c65ff3e06a05e3eb7b120223da3d39"
+uuid = "91c51154-3ec4-41a3-a24f-3f23e20d615c"
+version = "1.4.0"
 
 [[deps.Serialization]]
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
@@ -1861,11 +1871,10 @@ version = "3.5.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═5b25701c-b802-4a1c-adc7-6a9b9f033525
 # ╠═6585eddd-b047-43ea-8eca-09712a8c360e
-# ╠═ed7c654d-1f22-452c-b213-f8b9ca0e8624
-# ╠═ab06b6b1-d73f-4f60-9409-9290472e6e5c
-# ╠═3fac590c-190a-48b8-894c-3c020d8c7453
+# ╠═e1058654-51dc-4fa7-9808-7c54011767bf
+# ╠═e7f85df5-fe7c-4273-9602-39c6242b52d5
+# ╠═43139cf0-44e6-456b-9134-d262e5a116c6
 # ╠═cba30637-41d6-4722-b437-096bbf1e6145
 # ╠═8a8c8864-8387-4ca4-8851-4b0cd2e2ff9f
 # ╠═b178b88a-a67f-48d5-9bca-d31521a1b68d
