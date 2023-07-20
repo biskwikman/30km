@@ -13,7 +13,11 @@ begin
 	using Statistics
 	using DataFrames
 	using PythonCall
+	using PlutoUI
 end
+
+# ╔═╡ 670288a6-a497-4c01-ab47-da2d92804e53
+
 
 # ╔═╡ e7f85df5-fe7c-4273-9602-39c6242b52d5
 # Chart Variables
@@ -67,8 +71,8 @@ end
 
 # ╔═╡ b178b88a-a67f-48d5-9bca-d31521a1b68d
 begin
-	product = "MOD13A2"
-	dataset = "EVI"
+	product = "MOD11A2"
+	dataset = "LST_Day"
 	product == "MOD11A2" ? unit = "degC" : unit = "NA"
 
 	all_versions = Array{Float32}(undef, (480, 360, 12, 16, 3))
@@ -103,9 +107,6 @@ begin
 		end
 	end
 end
-
-# ╔═╡ 43139cf0-44e6-456b-9134-d262e5a116c6
-yearly_aves[210,210,:,2]
 
 # ╔═╡ 0903d2e8-b084-4c7c-9c5a-3406d86b4f2f
 function get_valid_areas()
@@ -200,21 +201,24 @@ end
 begin
 	trend_min = minimum(skipmissing(trend_array))
 	trend_max = maximum(skipmissing(trend_array))
-	print(trend_min)
+	min_mag = sqrt(trend_min * trend_min)
+	max_mag = sqrt(trend_max * trend_max)
+	min_mag < max_mag ? range_max = max_mag : range_max = min_mag
+	range_min = range_max * -1
 end
 
 # ╔═╡ 6585eddd-b047-43ea-8eca-09712a8c360e
 begin
 	fig = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1600, 1400))
-	ax1 = Axis(fig[1,1], title="v05")
+	ax1 = Axis(fig[1,1], title="v05", xtickformat=(x -> string(x) * "°"))
 	ax2 = Axis(fig[1,2], title="v06")
 	ax3 = Axis(fig[2,1], title="v61")
 	
-	hm1 = heatmap!(ax1, 60:180, 10:80, trend_array[:,:,1], colorrange=(trend_min, trend_max), colormap=:batlow, title="v05")
-	hm2 = heatmap!(ax2, 60:180, 10:80, trend_array[:,:,2], colorrange=(trend_min, trend_max), colormap=:batlow, title="v06")
-	hm3 = heatmap!(ax3, 60:180, 10:80, trend_array[:,:,3], colorrange=(trend_min, trend_max), colormap=:batlow, title="v61")
+	hm1 = heatmap!(ax1, 60:180, 10:80, trend_array[:,:,1], colorrange=(range_min, range_max), colormap=:roma, title="v05")
+	hm2 = heatmap!(ax2, 60:180, 10:80, trend_array[:,:,2], colorrange=(range_min, range_max), colormap=:roma, title="v06")
+	hm3 = heatmap!(ax3, 60:180, 10:80, trend_array[:,:,3], colorrange=(range_min, range_max), colormap=:roma, title="v61")
 	Colorbar(fig[2,2], hm1, tellwidth=false, halign=:left)
-	Label(fig[0,:], "Annual Change in EVI")
+	Label(fig[0,:], "Annual Change in LST Day")
 	fig
 end
 
@@ -225,6 +229,7 @@ CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 MLJ = "add582a8-e3ab-11e8-2d5e-e98b27df1bc7"
 MLJScikitLearnInterface = "5ae90465-5518-4432-b9d2-8a1def2f0cab"
+PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
@@ -234,6 +239,7 @@ CairoMakie = "~0.10.6"
 DataFrames = "~1.6.0"
 MLJ = "~0.19.2"
 MLJScikitLearnInterface = "~0.4.0"
+PlutoUI = "~0.7.51"
 PythonCall = "~0.9.13"
 """
 
@@ -243,7 +249,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.9.2"
 manifest_format = "2.0"
-project_hash = "534c98ed84bfa5f5580a4c8802fc2639250d7530"
+project_hash = "1c23246cddc1baead2a76a288ab806ac6b32bdb2"
 
 [[deps.ARFFFiles]]
 deps = ["CategoricalArrays", "Dates", "Parsers", "Tables"]
@@ -260,6 +266,12 @@ weakdeps = ["ChainRulesCore"]
 
     [deps.AbstractFFTs.extensions]
     AbstractFFTsChainRulesCoreExt = "ChainRulesCore"
+
+[[deps.AbstractPlutoDingetjes]]
+deps = ["Pkg"]
+git-tree-sha1 = "8eaf9f1b4921132a4cff3f36a1d9ba923b14a481"
+uuid = "6e696c72-6542-2067-7265-42206c756150"
+version = "1.1.4"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "faa260e4cb5aba097a73fab382dd4b5819d8ec8c"
@@ -736,6 +748,24 @@ git-tree-sha1 = "a6105a85261f35b45aeb394dc917a03d907ec3c3"
 uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
 version = "0.3.19"
 
+[[deps.Hyperscript]]
+deps = ["Test"]
+git-tree-sha1 = "8d511d5b81240fc8e6802386302675bdf47737b9"
+uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
+version = "0.0.4"
+
+[[deps.HypertextLiteral]]
+deps = ["Tricks"]
+git-tree-sha1 = "c47c5fa4c5308f27ccaac35504858d8914e102f9"
+uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
+version = "0.9.4"
+
+[[deps.IOCapture]]
+deps = ["Logging", "Random"]
+git-tree-sha1 = "d75853a0bdbfb1ac815478bacd89cd27b550ace6"
+uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
+version = "0.2.3"
+
 [[deps.ImageAxes]]
 deps = ["AxisArrays", "ImageBase", "ImageCore", "Reexport", "SimpleTraits"]
 git-tree-sha1 = "c54b581a83008dc7f292e205f4c409ab5caa0f04"
@@ -1008,6 +1038,11 @@ deps = ["CategoricalArrays", "Markdown", "Statistics"]
 git-tree-sha1 = "44a7bfeb7b5eb9386a62b9cccc6e21f406c15bea"
 uuid = "30fc2ffe-d236-52d8-8643-a9d8f7c094a7"
 version = "0.10.0"
+
+[[deps.MIMEs]]
+git-tree-sha1 = "65f28ad4b594aebe22157d6fac869786a255b7eb"
+uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
+version = "0.1.4"
 
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "Pkg"]
@@ -1308,6 +1343,12 @@ deps = ["ColorSchemes", "Colors", "Dates", "PrecompileTools", "Printf", "Random"
 git-tree-sha1 = "f92e1315dadf8c46561fb9396e525f7200cdc227"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
 version = "1.3.5"
+
+[[deps.PlutoUI]]
+deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
+git-tree-sha1 = "b478a748be27bd2f2c73a7690da219d0844db305"
+uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+version = "0.7.51"
 
 [[deps.PolygonOps]]
 git-tree-sha1 = "77b3d3605fc1cd0b42d95eba87dfcd2bf67d5ff6"
@@ -1685,6 +1726,11 @@ git-tree-sha1 = "9a6ae7ed916312b41236fcef7e0af564ef934769"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 version = "0.9.13"
 
+[[deps.Tricks]]
+git-tree-sha1 = "aadb748be58b492045b4f56166b5188aa63ce549"
+uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
+version = "0.1.7"
+
 [[deps.TriplotBase]]
 git-tree-sha1 = "4d4ed7f294cda19382ff7de4c137d24d16adc89b"
 uuid = "981d1d27-644d-49a2-9326-4793e63143c3"
@@ -1871,10 +1917,10 @@ version = "3.5.0+0"
 """
 
 # ╔═╡ Cell order:
+# ╠═670288a6-a497-4c01-ab47-da2d92804e53
 # ╠═6585eddd-b047-43ea-8eca-09712a8c360e
 # ╠═e1058654-51dc-4fa7-9808-7c54011767bf
 # ╠═e7f85df5-fe7c-4273-9602-39c6242b52d5
-# ╠═43139cf0-44e6-456b-9134-d262e5a116c6
 # ╠═cba30637-41d6-4722-b437-096bbf1e6145
 # ╠═8a8c8864-8387-4ca4-8851-4b0cd2e2ff9f
 # ╠═b178b88a-a67f-48d5-9bca-d31521a1b68d
