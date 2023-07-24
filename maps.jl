@@ -16,6 +16,39 @@ begin
 	using PlutoUI
 end
 
+# ╔═╡ 6585eddd-b047-43ea-8eca-09712a8c360e
+# ╠═╡ disabled = true
+#=╠═╡
+begin
+	fig = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1600, 1400))
+	ax1 = Axis(fig[1,1], title="v05", 
+		# xtickformat=(x -> string(x) * "°")
+	)
+	ax2 = Axis(fig[1,2], title="v06")
+	ax3 = Axis(fig[2,1], title="v61")
+	
+	hm1 = heatmap!(ax1, 60:180, 10:80, trend_array[:,:,1], colorrange=(range_min+0.1, range_max-0.1), colormap=:balance, title="v05")
+	hm2 = heatmap!(ax2, 60:180, 10:80, trend_array[:,:,2], colorrange=(range_min+0.1, range_max-0.1), colormap=:balance, title="v06")
+	hm3 = heatmap!(ax3, 60:180, 10:80, trend_array[:,:,3], colorrange=(range_min+0.1, range_max-0.1), colormap=:balance, title="v61")
+	Colorbar(fig[2,2], hm1, tellwidth=false, halign=:left)
+	Label(fig[0,:], "Annual Change in LST Day")
+	fig
+end
+  ╠═╡ =#
+
+# ╔═╡ e1058654-51dc-4fa7-9808-7c54011767bf
+# ╠═╡ disabled = true
+#=╠═╡
+begin
+	trend_min = minimum(skipmissing(trend_array))
+	trend_max = maximum(skipmissing(trend_array))
+	min_mag = sqrt(trend_min * trend_min)
+	max_mag = sqrt(trend_max * trend_max)
+	min_mag < max_mag ? range_max = max_mag : range_max = min_mag
+	range_min = range_max * -1
+end
+  ╠═╡ =#
+
 # ╔═╡ e7f85df5-fe7c-4273-9602-39c6242b52d5
 # Chart Variables
 begin
@@ -68,8 +101,8 @@ end
 
 # ╔═╡ b178b88a-a67f-48d5-9bca-d31521a1b68d
 begin
-	product = "MOD15A2H"
-	dataset = "LAI"
+	product = "MOD11A2"
+	dataset = "LST_Day"
 	product == "MOD11A2" ? unit = "degC" : unit = "NA"
 
 	all_versions = Array{Float32}(undef, (480, 360, 12, 16, 3))
@@ -195,44 +228,20 @@ begin
 end
 
 # ╔═╡ 670288a6-a497-4c01-ab47-da2d92804e53
+# ╠═╡ disabled = true
+#=╠═╡
 begin
 	using Serialization
 	using FileIO
 	using JLD2
 	# replace!(trend_array, missing => -9999.0)
 	# out_array = convert(Array{Float32}, trend_array)
-	jldsave("./Annual_Trend_Data_LAI.jld2"; lai=trend_array)
+	jldsave("./Annual_Trend_Data_LSTDAY.jld2"; lst_day=trend_array)
 end
+  ╠═╡ =#
 
 # ╔═╡ 991ce1cf-ea03-474f-a1a9-82fabcc572fd
 heatmap(trend_array[:,:,3])
-
-# ╔═╡ e1058654-51dc-4fa7-9808-7c54011767bf
-begin
-	trend_min = minimum(skipmissing(trend_array))
-	trend_max = maximum(skipmissing(trend_array))
-	min_mag = sqrt(trend_min * trend_min)
-	max_mag = sqrt(trend_max * trend_max)
-	min_mag < max_mag ? range_max = max_mag : range_max = min_mag
-	range_min = range_max * -1
-end
-
-# ╔═╡ 6585eddd-b047-43ea-8eca-09712a8c360e
-begin
-	fig = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1600, 1400))
-	ax1 = Axis(fig[1,1], title="v05", 
-		# xtickformat=(x -> string(x) * "°")
-	)
-	ax2 = Axis(fig[1,2], title="v06")
-	ax3 = Axis(fig[2,1], title="v61")
-	
-	hm1 = heatmap!(ax1, 60:180, 10:80, trend_array[:,:,1], colorrange=(range_min+0.1, range_max-0.1), colormap=:balance, title="v05")
-	hm2 = heatmap!(ax2, 60:180, 10:80, trend_array[:,:,2], colorrange=(range_min+0.1, range_max-0.1), colormap=:balance, title="v06")
-	hm3 = heatmap!(ax3, 60:180, 10:80, trend_array[:,:,3], colorrange=(range_min+0.1, range_max-0.1), colormap=:balance, title="v61")
-	Colorbar(fig[2,2], hm1, tellwidth=false, halign=:left)
-	Label(fig[0,:], "Annual Change in LST Day")
-	fig
-end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """

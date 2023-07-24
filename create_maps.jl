@@ -4,36 +4,113 @@
 using Markdown
 using InteractiveUtils
 
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
+        el
+    end
+end
+
 # ╔═╡ 3b024aef-2cb9-4b3a-a178-b85750341029
 begin
 	using CairoMakie
 	using JLD2
+	using Statistics
+	using PlutoUI
+end
+
+# ╔═╡ 318cbb16-5719-4760-99fe-eefc99c5af0b
+@bind dataset Select(["lai", "ndvi", "evi", "lst_day", "lst_night"])
+
+# ╔═╡ 8af751ba-6781-418c-8487-964002e478b1
+if occursin("lst", dataset)
+	colormap = :balance
+else
+	colormap = :bam
 end
 
 # ╔═╡ 7e8bd1a0-011b-46b1-8ba0-cf58d3458876
 begin
-	f = jldopen("./Annual_Trend_Data_LSTDay.jld2")
-	trend_array = f["lst_day"]
+	f = jldopen("./Annual_Trend_Data.jld2")
+	trend_array = f[dataset]
 	trend_array = convert(Array{Union{Missing, Float32}}, trend_array)
 	replace!(trend_array, -9999.0 => missing)
 	trend_array
 end
 
+# ╔═╡ b807ac0c-bbb1-4e54-aa2f-18f94ab77a0e
+begin
+	trend_vec = vec(trend_array)
+	filt_vec = filter(x -> !ismissing(x), trend_vec)
+	sort(filt_vec)
+end
+
+# ╔═╡ 79e57fa6-f3e4-4963-bc9d-3f0977c1c357
+begin
+	trend_min = minimum(skipmissing(trend_array))
+	trend_max = maximum(skipmissing(trend_array))
+	min_mag = sqrt(trend_min * trend_min)
+	max_mag = sqrt(trend_max * trend_max)
+	min_mag < max_mag ? range_max = max_mag : range_max = min_mag
+	range_min = range_max * -1
+end
+
 # ╔═╡ 5c7f22ca-ea25-4074-a4e3-94a881b5ab31
-heatmap(trend_array[:,:,1])
+begin
+	fig = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1600, 1400))
+	
+	ax1 = Axis(fig[1,1], title="v05",
+		xtickformat = x -> string.(Int.(x)) .* "°E",
+		ytickformat = y -> string.(Int.(y)) .* "°N"
+	)
+	ax2 = Axis(fig[1,2], title="v06",
+		xtickformat = x -> string.(Int.(x)) .* "°E",
+		ytickformat = y -> string.(Int.(y)) .* "°N"
+	)
+	ax3 = Axis(fig[2,1], title="v61",
+		xtickformat = x -> string.(Int.(x)) .* "°E",
+		ytickformat = y -> string.(Int.(y)) .* "°N"
+	)
+
+	hm1 = heatmap!(ax1, 60:180, 10:80, trend_array[:,:,1]; colorrange=(range_min, range_max), colormap=colormap, title="v05")
+	hm2 = heatmap!(ax2, 60:180, 10:80, trend_array[:,:,2], colorrange=(range_min, range_max), colormap=colormap, title="v06")
+	hm3 = heatmap!(ax3, 60:180, 10:80, trend_array[:,:,3], colorrange=(range_min, range_max), colormap=colormap, title="v61")
+	Colorbar(fig[2,2], hm1, tellwidth=false, halign=:left)
+	Label(fig[0,:], uppercase(dataset) * " Trend", fontsize=20)
+
+	fig
+end
+
+# ╔═╡ 57dc2646-e7eb-4561-b2af-f2337bbd06aa
+maximum(skipmissing(trend_array))
 
 # ╔═╡ 3b92cf5f-e72e-48de-99ec-38e8d974258d
 typeof(trend_array)
+
+# ╔═╡ 4f4e2f3e-2af6-43fe-a2d7-4d5ca8b0804e
+html"""<style>
+main {
+    max-width: 75%;
+    margin-left: 1%;
+    margin-right: 2% !important;
+}
+"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
 CairoMakie = "~0.10.6"
 JLD2 = "~0.4.32"
+PlutoUI = "~0.7.52"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -42,7 +119,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.9.2"
 manifest_format = "2.0"
-project_hash = "0c27b246aa5cdb1425a77ab0e598d8bdd03a13cc"
+project_hash = "74aa119377360b1bc2b0937b491d8079fa15c2a8"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -53,6 +130,12 @@ weakdeps = ["ChainRulesCore"]
 
     [deps.AbstractFFTs.extensions]
     AbstractFFTsChainRulesCoreExt = "ChainRulesCore"
+
+[[deps.AbstractPlutoDingetjes]]
+deps = ["Pkg"]
+git-tree-sha1 = "91bd53c39b9cbfb5ef4b015e8b582d344532bd0a"
+uuid = "6e696c72-6542-2067-7265-42206c756150"
+version = "1.2.0"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "faa260e4cb5aba097a73fab382dd4b5819d8ec8c"
@@ -430,6 +513,24 @@ git-tree-sha1 = "a6105a85261f35b45aeb394dc917a03d907ec3c3"
 uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
 version = "0.3.19"
 
+[[deps.Hyperscript]]
+deps = ["Test"]
+git-tree-sha1 = "8d511d5b81240fc8e6802386302675bdf47737b9"
+uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
+version = "0.0.4"
+
+[[deps.HypertextLiteral]]
+deps = ["Tricks"]
+git-tree-sha1 = "c47c5fa4c5308f27ccaac35504858d8914e102f9"
+uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
+version = "0.9.4"
+
+[[deps.IOCapture]]
+deps = ["Logging", "Random"]
+git-tree-sha1 = "d75853a0bdbfb1ac815478bacd89cd27b550ace6"
+uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
+version = "0.2.3"
+
 [[deps.ImageAxes]]
 deps = ["AxisArrays", "ImageBase", "ImageCore", "Reexport", "SimpleTraits"]
 git-tree-sha1 = "c54b581a83008dc7f292e205f4c409ab5caa0f04"
@@ -668,6 +769,11 @@ version = "0.3.24"
 [[deps.Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
+[[deps.MIMEs]]
+git-tree-sha1 = "65f28ad4b594aebe22157d6fac869786a255b7eb"
+uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
+version = "0.1.4"
+
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "Pkg"]
 git-tree-sha1 = "154d7aaa82d24db6d8f7e4ffcfe596f40bff214b"
@@ -883,6 +989,12 @@ deps = ["ColorSchemes", "Colors", "Dates", "PrecompileTools", "Printf", "Random"
 git-tree-sha1 = "f92e1315dadf8c46561fb9396e525f7200cdc227"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
 version = "1.3.5"
+
+[[deps.PlutoUI]]
+deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
+git-tree-sha1 = "e47cd150dbe0443c3a3651bc5b9cbd5576ab75b7"
+uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+version = "0.7.52"
 
 [[deps.PolygonOps]]
 git-tree-sha1 = "77b3d3605fc1cd0b42d95eba87dfcd2bf67d5ff6"
@@ -1186,6 +1298,11 @@ git-tree-sha1 = "9a6ae7ed916312b41236fcef7e0af564ef934769"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 version = "0.9.13"
 
+[[deps.Tricks]]
+git-tree-sha1 = "aadb748be58b492045b4f56166b5188aa63ce549"
+uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
+version = "0.1.7"
+
 [[deps.TriplotBase]]
 git-tree-sha1 = "4d4ed7f294cda19382ff7de4c137d24d16adc89b"
 uuid = "981d1d27-644d-49a2-9326-4793e63143c3"
@@ -1195,6 +1312,11 @@ version = "0.1.0"
 git-tree-sha1 = "3c712976c47707ff893cf6ba4354aa14db1d8938"
 uuid = "9d95972d-f1c8-5527-a6e0-b4b365fa01f6"
 version = "1.3.0"
+
+[[deps.URIs]]
+git-tree-sha1 = "074f993b0ca030848b897beff716d93aca60f06a"
+uuid = "5c2747f8-b7ea-4ff2-ba2e-563bfd36b1d4"
+version = "1.4.2"
 
 [[deps.UUIDs]]
 deps = ["Random", "SHA"]
@@ -1351,9 +1473,15 @@ version = "3.5.0+0"
 """
 
 # ╔═╡ Cell order:
+# ╠═318cbb16-5719-4760-99fe-eefc99c5af0b
 # ╠═5c7f22ca-ea25-4074-a4e3-94a881b5ab31
+# ╠═8af751ba-6781-418c-8487-964002e478b1
+# ╠═b807ac0c-bbb1-4e54-aa2f-18f94ab77a0e
+# ╠═79e57fa6-f3e4-4963-bc9d-3f0977c1c357
+# ╠═57dc2646-e7eb-4561-b2af-f2337bbd06aa
 # ╠═3b92cf5f-e72e-48de-99ec-38e8d974258d
 # ╠═7e8bd1a0-011b-46b1-8ba0-cf58d3458876
 # ╠═3b024aef-2cb9-4b3a-a178-b85750341029
+# ╠═4f4e2f3e-2af6-43fe-a2d7-4d5ca8b0804e
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
