@@ -10,11 +10,22 @@ begin
 	import MLJLIBSVMInterface
 	using DataFrames
 	using CSV
+	using Statistics
 end
 
 # ╔═╡ f12bf1d2-aba3-4dbb-9a60-6cd6d9fd1c45
 begin
-	df = CSV.File("./AsiaDB_C6_PlusModis.csv", select=[ :LAI, :FPAR, :EVI,:NDVI,:LST_DAY,:LST_NIGHT])
+	df = CSV.File("./AsiaDB_C6_PlusModis.csv", select=[:GPP, :LAI, :FPAR, :EVI,:NDVI,:LST_DAY,:LST_NIGHT], types=Union{Missing, Float64}) |> DataFrame
+	
+	df[df.GPP .== -9999.0,:GPP] .= missing
+
+	# dropmissing!(df)
+
+	gpp = df.GPP
+
+	# select!(df, Not(:GPP))
+
+	df
 
 end
 
@@ -25,7 +36,12 @@ begin
 end
 
 # ╔═╡ 4704d52d-1374-4bf2-b8ec-491428b7e796
-mach = machine(model, df)
+begin
+	mach = machine(model, df, gpp)
+	fit!(mach)
+	yhat = predict(mach, df)
+	cor(gpp, yhat)
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -34,6 +50,7 @@ CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 MLJ = "add582a8-e3ab-11e8-2d5e-e98b27df1bc7"
 MLJLIBSVMInterface = "61c7150f-6c77-4bb1-949c-13197eac2a52"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
 CSV = "~0.10.11"
@@ -48,7 +65,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.9.2"
 manifest_format = "2.0"
-project_hash = "1d6ce9303a0897a170561728d31f664f7e4d63df"
+project_hash = "e8e50096ce089f5add9cc17a0cfbe5e831da0c7f"
 
 [[deps.ARFFFiles]]
 deps = ["CategoricalArrays", "Dates", "Parsers", "Tables"]
