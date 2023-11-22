@@ -60,26 +60,44 @@ end
 
 # ╔═╡ 52ee4140-3f41-4a19-a08d-fa3386802fc6
 begin
-	fig = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1600, 1400))
+	fig = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (2200, 700))
+	xticklabelsize=24
+	yticklabelsize=24
+	titlesize=28
 
 	ax1 = Axis(fig[1,1], title="v05",
 		xtickformat = x -> string.(Int.(x)) .* "°E",
-		ytickformat = y -> string.(Int.(y)) .* "°N"
+		ytickformat = y -> string.(Int.(y)) .* "°N",
+		xgridvisible=false,
+		ygridvisible=false,
+		xticklabelsize=xticklabelsize,
+		yticklabelsize=yticklabelsize,
+		titlesize=titlesize,
 	)
 	ax2 = Axis(fig[1,2], title="v06",
 		xtickformat = x -> string.(Int.(x)) .* "°E",
-		ytickformat = y -> string.(Int.(y)) .* "°N"
+		ytickformat = y -> string.(Int.(y)) .* "°N",
+		xgridvisible=false,
+		ygridvisible=false,
+		xticklabelsize=xticklabelsize,
+		yticklabelsize=yticklabelsize,
+		titlesize=titlesize,
 	)
-	ax3 = Axis(fig[2,1], title="v61",
+	ax3 = Axis(fig[1,3], title="v6.1",
 		xtickformat = x -> string.(Int.(x)) .* "°E",
-		ytickformat = y -> string.(Int.(y)) .* "°N"
+		ytickformat = y -> string.(Int.(y)) .* "°N",
+		xgridvisible=false,
+		ygridvisible=false,
+		xticklabelsize=xticklabelsize,
+		yticklabelsize=yticklabelsize,
+		titlesize=titlesize,
 	)
 
 	hm1 = heatmap!(ax1, 60:180, 10:80, trend_array[:,:,1]; colorrange=(range_min, range_max), colormap=colormap, title="v05")
 	hm2 = heatmap!(ax2, 60:180, 10:80, trend_array[:,:,2], colorrange=(range_min, range_max), colormap=colormap, title="v06")
-	hm3 = heatmap!(ax3, 60:180, 10:80, trend_array[:,:,3], colorrange=(range_min, range_max), colormap=colormap, title="v61")
-	Colorbar(fig[2,2], hm1, tellwidth=false, halign=:left)
-	Label(fig[0,:], uppercase(dataset) * " Trend", fontsize=20)
+	hm3 = heatmap!(ax3, 60:180, 10:80, trend_array[:,:,3], colorrange=(range_min, range_max), colormap=colormap, title="v6.1")
+	Colorbar(fig[1,4], hm1, tellwidth=true, halign=:left, ticklabelsize=24)
+	Label(fig[0,:], uppercase(dataset) * " Trend", fontsize=32)
 
 	fig
 end
@@ -99,12 +117,6 @@ main {
 }
 """
 
-# ╔═╡ c00a3981-fab0-4f50-b491-be32707ff441
-begin
-	a = jldopen("./Annual_Trend_Data_LAI.jld2")["lai"]
-	heatmap(a[:,:,1])
-end
-
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -123,7 +135,7 @@ PlutoUI = "~0.7.52"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.2"
+julia_version = "1.9.4"
 manifest_format = "2.0"
 project_hash = "d1e72d17a80995a5d5ce9321ba5a22705cadfedc"
 
@@ -828,12 +840,12 @@ version = "0.3.1"
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
 uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
-version = "0.6.3"
+version = "0.6.4"
 
 [[deps.LibCURL_jll]]
 deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll", "Zlib_jll", "nghttp2_jll"]
 uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
-version = "7.84.0+0"
+version = "8.4.0+0"
 
 [[deps.LibGit2]]
 deps = ["Base64", "NetworkOptions", "Printf", "SHA"]
@@ -842,7 +854,7 @@ uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
 [[deps.LibSSH2_jll]]
 deps = ["Artifacts", "Libdl", "MbedTLS_jll"]
 uuid = "29816b5a-b9ab-546f-933c-edad1886dfa8"
-version = "1.10.2+0"
+version = "1.11.0+1"
 
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
@@ -1708,7 +1720,7 @@ version = "1.3.7+1"
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
-version = "1.48.0+0"
+version = "1.52.0+1"
 
 [[deps.p7zip_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -1739,6 +1751,5 @@ version = "3.5.0+0"
 # ╠═7e8bd1a0-011b-46b1-8ba0-cf58d3458876
 # ╠═3b024aef-2cb9-4b3a-a178-b85750341029
 # ╠═4f4e2f3e-2af6-43fe-a2d7-4d5ca8b0804e
-# ╠═c00a3981-fab0-4f50-b491-be32707ff441
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

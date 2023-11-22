@@ -8,24 +8,68 @@ using InteractiveUtils
 begin
 	using MLJ
 	import MLJLIBSVMInterface
+	import MLJModels
 	using DataFrames
 	using CSV
 	using Statistics
 end
 
+# ╔═╡ 4704d52d-1374-4bf2-b8ec-491428b7e796
+begin
+	# mach = machine(model, df, gpp)
+	# fit!(mach)
+	# yhat = predict(mach, df)
+	# cor(gpp, yhat)
+end
+
 # ╔═╡ f12bf1d2-aba3-4dbb-9a60-6cd6d9fd1c45
 begin
-	df = CSV.File("./AsiaDB_C6_PlusModis.csv", select=[:GPP, :LAI, :FPAR, :EVI,:NDVI,:LST_DAY,:LST_NIGHT], types=Union{Missing, Float64}) |> DataFrame
-	
-	df[df.GPP .== -9999.0,:GPP] .= missing
+	df = CSV.File("./AsiaDB_C6_PlusModis.csv",
+		select=[
+			:SiteCode, :GPP, :LAI, :FPAR, :EVI, :NDVI, :LST_DAY, :LST_NIGHT
+		]) |> DataFrame
 
-	# dropmissing!(df)
+	df.GPP = replace(df.GPP, -9999.0 => missing)
 
-	gpp = df.GPP
+	sitecodes = unique(df.SiteCode)
+
+	# some variable is all missings in at least one sitecode
+	for sitecode in sitecodes
+		site_subset = subset(df, :SiteCode => s -> s .== sitecode)
+		sizes = size.(eachcol(site_subset))
+		missings = count.(i->ismissing(i), eachcol(site_subset))
+
+		all_missing = false
+		for (i, size) in enumerate(sizes)
+			# println(size[1])
+			# println(missings[i])
+			if size[1] == missings[i]
+				println("all missings")
+				all_missing = true
+			end
+		end
+
+		if all_missing == true
+			deleteat!(df, df.SiteCode .== sitecode)
+		end
+		
+		# mach = machine(imputer, site_subset)
+		# fit!(mach)
+		# site_subset = MLJ.transform(mach, site_subset)
+		# df[df.SiteCode .== sitecode, :] = site_subset
+	end
+	df
+
+	# size(df.SiteCode)[1]
+	# count(i->!ismissing(i), df.SiteCode)
+
+	# gpp = df.GPP
 
 	# select!(df, Not(:GPP))
 
-	df
+	# eltype.(eachcol(df))
+
+	
 
 end
 
@@ -33,14 +77,9 @@ end
 begin
 	EpsilonSVR = @load EpsilonSVR pkg=LIBSVM
 	model = EpsilonSVR()
-end
 
-# ╔═╡ 4704d52d-1374-4bf2-b8ec-491428b7e796
-begin
-	mach = machine(model, df, gpp)
-	fit!(mach)
-	yhat = predict(mach, df)
-	cor(gpp, yhat)
+	FillImputer = @load FillImputer pkg=MLJModels
+	imputer = FillImputer()
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -50,6 +89,7 @@ CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 MLJ = "add582a8-e3ab-11e8-2d5e-e98b27df1bc7"
 MLJLIBSVMInterface = "61c7150f-6c77-4bb1-949c-13197eac2a52"
+MLJModels = "d491faf4-2d78-11e9-2867-c94bc002c0b7"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
@@ -57,6 +97,7 @@ CSV = "~0.10.11"
 DataFrames = "~1.6.1"
 MLJ = "~0.19.2"
 MLJLIBSVMInterface = "~0.2.1"
+MLJModels = "~0.16.9"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -65,7 +106,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.9.2"
 manifest_format = "2.0"
-project_hash = "e8e50096ce089f5add9cc17a0cfbe5e831da0c7f"
+project_hash = "b8044f88577dd464e49b31ae044ba86f6b579f6f"
 
 [[deps.ARFFFiles]]
 deps = ["CategoricalArrays", "Dates", "Parsers", "Tables"]

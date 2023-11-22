@@ -242,7 +242,7 @@ PythonCall = "~0.9.13"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.4"
+julia_version = "1.9.2"
 manifest_format = "2.0"
 project_hash = "29252af857655aba060d3699aaeda11e749c1971"
 
@@ -1080,12 +1080,12 @@ version = "0.3.1"
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
 uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
-version = "0.6.4"
+version = "0.6.3"
 
 [[deps.LibCURL_jll]]
 deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll", "Zlib_jll", "nghttp2_jll"]
 uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
-version = "8.4.0+0"
+version = "7.84.0+0"
 
 [[deps.LibGit2]]
 deps = ["Base64", "NetworkOptions", "Printf", "SHA"]
@@ -1094,7 +1094,7 @@ uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
 [[deps.LibSSH2_jll]]
 deps = ["Artifacts", "Libdl", "MbedTLS_jll"]
 uuid = "29816b5a-b9ab-546f-933c-edad1886dfa8"
-version = "1.11.0+1"
+version = "1.10.2+0"
 
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
@@ -2139,7 +2139,7 @@ version = "1.4.1+0"
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
-version = "1.52.0+1"
+version = "1.48.0+0"
 
 [[deps.p7zip_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -2162,6 +2162,8 @@ version = "3.5.0+0"
 # ╔═╡ Cell order:
 # ╠═670288a6-a497-4c01-ab47-da2d92804e53
 # ╠═991ce1cf-ea03-474f-a1a9-82fabcc572fd
+# ╠═6585eddd-b047-43ea-8eca-09712a8c360e
+# ╠═e1058654-51dc-4fa7-9808-7c54011767bf
 # ╠═e7f85df5-fe7c-4273-9602-39c6242b52d5
 # ╠═0686d932-bd34-4e21-873f-2fbdca2c0c6a
 # ╠═cba30637-41d6-4722-b437-096bbf1e6145
