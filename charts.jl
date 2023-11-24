@@ -35,6 +35,9 @@ end
 # ╔═╡ 8999ecae-84f3-40a1-af18-edc897b3f855
 @bind region_name Select(["East Asia","Southeast Asia","South Asia","Siberia"])
 
+# ╔═╡ 3ffa5b58-f446-46b4-b5ae-3277d0d089e7
+# save(@sprintf("./output/%s.png", region_name), f)
+
 # ╔═╡ 178b80c2-4239-4866-b115-82de5e0a3f60
 function get_sample_data(product, unit)
 	sample_filepath = @sprintf("./modis_data/%s.005/MONTH", product[1])
@@ -307,9 +310,6 @@ begin
 	f
 end
 
-# ╔═╡ 3ffa5b58-f446-46b4-b5ae-3277d0d089e7
-save(@sprintf("./output/%s.png", region_name), f)
-
 # ╔═╡ 7cb603db-f12d-4022-96ba-a0ec3d8db383
 # Charts for presentation
 begin
@@ -326,13 +326,15 @@ begin
 		mean006 = mean(chart_data[dataset]["006"][1:6])
 		mean061 = mean(chart_data[dataset]["061"][1:6])
 
-		chart_order_pres[i] in ["LST_Day"] ? title = "Day Land Surface Temp" : title = uppercase(dataset)
+		chart_order_pres[i] in ["LST_Day"] ? title = "Day Land Surface Temp: Variation from 2000-2005 Mean" : title = uppercase(dataset) * ": Variation from 2000-2005 Mean"
 		ylabel = ""
 		if chart_order_pres[i] == "LST_Day"
 			ylabel = "°C"
 		end
 		ticklabelsize = 24
 		ax = Axis(grids_pres[i][1,1], title=title, xlabel="Year", ylabel=ylabel, xticks=xticks, xticklabelsize=ticklabelsize, yticklabelsize=ticklabelsize, xlabelsize=ticklabelsize, ylabelsize=ticklabelsize, titlesize=27)
+
+		poly!(ax, Point2f[(2000.0, -0.01), (2005.0, -0.01), (2005.0, 3.0), (2000.0, 3.0)], tellsize=false)
 
 		linewidth = 3
 		lines!(ax, years, chart_data[dataset]["005"] .- mean005, label="v05μ", linewidth=linewidth, color=(colormap[1], 0.5))
