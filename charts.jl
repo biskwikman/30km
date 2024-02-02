@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.26
+# v0.19.36
 
 using Markdown
 using InteractiveUtils
@@ -319,7 +319,7 @@ begin
 	gb_pres = f_pres[2, 1] = GridLayout()
 	gl_pres = f_pres[0, :] = GridLayout()
 	grids_pres 	= 	[ga_pres, gb_pres]
-	Label(gl_pres[1,1], region_name, fontsize = 32, tellwidth=false)
+	Label(gl_pres[1,1], region_name, fontsize = 35, tellwidth=false)
 	for (i, dataset) in enumerate(chart_order_pres)
 		i == 5 ? xlabel = "Years" : xlabel = ""
 		mean005 = mean(chart_data[dataset]["005"][1:6])
@@ -331,10 +331,13 @@ begin
 		if chart_order_pres[i] == "LST_Day"
 			ylabel = "°C"
 		end
-		ticklabelsize = 24
-		ax = Axis(grids_pres[i][1,1], title=title, xlabel="Year", ylabel=ylabel, xticks=xticks, xticklabelsize=ticklabelsize, yticklabelsize=ticklabelsize, xlabelsize=ticklabelsize, ylabelsize=ticklabelsize, titlesize=27)
+		ticklabelsize = 30
+		ylimmax = maximum([maximum(chart_data[dataset]["005"] .- mean005), maximum(chart_data[dataset]["006"] .- mean006), maximum(chart_data[dataset]["061"] .- mean061)])
+		ylimmin = minimum([minimum(chart_data[dataset]["005"] .- mean005), minimum(chart_data[dataset]["006"] .- mean006), minimum(chart_data[dataset]["061"] .- mean061)])
 
-		poly!(ax, Point2f[(2000.0, -0.01), (2005.0, -0.01), (2005.0, 3.0), (2000.0, 3.0)], tellsize=false)
+		ax = Axis(grids_pres[i][1,1], title=title, xlabel="Year", ylabel=ylabel, xticks=xticks, xticklabelsize=ticklabelsize, yticklabelsize=ticklabelsize, xlabelsize=ticklabelsize, ylabelsize=ticklabelsize, titlesize=27, limits=(minimum(years)-0.5, maximum(years)+0.5, ylimmin, ylimmax))
+
+		poly!(ax, Point2f[(0, -100), (2005.0, -100), (2005.0, 100), (0, 100)], color=RGBA(0.1, 0.1, 0.1, 0.1))
 
 		linewidth = 3
 		lines!(ax, years, chart_data[dataset]["005"] .- mean005, label="v05μ", linewidth=linewidth, color=(colormap[1], 0.5))
@@ -360,7 +363,7 @@ begin
 		fit!(ts_machine_61, verbosity=0)
 		regr61 = predict_mode(ts_machine_61)
 
-		reglinewidth = 5
+		reglinewidth = 7
 		lines!(ax, df.years, round.(regr05, digits=5), label="v05 lm", linewidth=reglinewidth, linestyle=:dash, color=colormap[1])
 		lines!(ax, df.years, round.(regr06, digits=5), label="v06 lm", linewidth=reglinewidth, linestyle=:dash, color=colormap[2])
 		lines!(ax, df.years, round.(regr61, digits=5), label="v61 lm", linewidth=reglinewidth, linestyle=:dash, color=colormap[3])
@@ -372,30 +375,32 @@ begin
 
 		v05_p = string(round(mk_original_test(df.v05).p, digits=3))
 		v05_τ = string(round(mk_original_test(df.v05).τ, digits=2))
-		v05_test = LineElement(linewidth=2, linestyle=:dash, color=(colormap[1]))
+		v05_test = LineElement(linewidth=reglinewidth, linestyle=:dash, color=(colormap[1]))
 		v06_p = string(round(mk_original_test(df.v06).p, digits=3))
 		v06_τ = string(round(mk_original_test(df.v06).τ, digits=2))
-		v06_test = LineElement(linewidth=2, linestyle=:dash, color=(colormap[2]))
+		v06_test = LineElement(linewidth=reglinewidth, linestyle=:dash, color=(colormap[2]))
 		v61_p = string(round(mk_original_test(df.v61).p, digits=3))
 		v61_τ = string(round(mk_original_test(df.v61).τ, digits=2))
-		v61_test = LineElement(linewidth=2, linestyle=:dash, color=(colormap[3]))
+		v61_test = LineElement(linewidth=reglinewidth, linestyle=:dash, color=(colormap[3]))
 
-		Legend(grids_pres[i][1,2],
+		Legend(grids_pres[i][1,2][1,1],
 			[v05_test, v06_test, v61_test],
 			[v05_p, v06_p, v61_p],
 			"P (MK)",
-			labelsize=25,
-			titlesize=25,
-			width=100
+			labelsize=30,
+			titlesize=30,
+			width=120,
+			valign=:bottom,
 		)
 
 		Legend(grids_pres[i][1,2][2,1],
 			[v05_test, v06_test, v61_test],
 			[v05_τ, v06_τ, v61_τ],
 			"τ (MK)",
-			labelsize=25,
-			titlesize=25,
-			width=100
+			labelsize=30,
+			titlesize=30,
+			width=120,
+			valign=:top,
 		)
 
 		valign=:top
@@ -405,7 +410,7 @@ begin
 			if region_name in ["East Asia", "South Asia"]
 				valign=:bottom
 			end
-			Legend(f_pres[1,1], ax, tellwidth=false, halign=halign, valign=valign, margin=(5, 5, 5, 5), labelsize=25)
+			Legend(f_pres[1,1], ax, tellwidth=false, halign=halign, valign=valign, margin=(5, 5, 5, 5), labelsize=30)
 		end
 	end
 	f_pres
@@ -456,7 +461,7 @@ UrlDownload = "~1.0.1"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.4"
+julia_version = "1.10.0"
 manifest_format = "2.0"
 project_hash = "7e3b5f0969a13d385f5ada1681f9e7a685da1dd4"
 
@@ -704,7 +709,7 @@ weakdeps = ["Dates", "LinearAlgebra"]
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "1.0.5+0"
+version = "1.0.5+1"
 
 [[deps.ComputationalResources]]
 git-tree-sha1 = "52cb3ec90e8a8bea0e62e275ba577ad0f74821f7"
@@ -1311,8 +1316,13 @@ uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
 version = "8.4.0+0"
 
 [[deps.LibGit2]]
-deps = ["Base64", "NetworkOptions", "Printf", "SHA"]
+deps = ["Base64", "LibGit2_jll", "NetworkOptions", "Printf", "SHA"]
 uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
+
+[[deps.LibGit2_jll]]
+deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll"]
+uuid = "e37daf67-58a4-590a-8e99-b0245dd2ffc5"
+version = "1.6.4+0"
 
 [[deps.LibSSH2_jll]]
 deps = ["Artifacts", "Libdl", "MbedTLS_jll"]
@@ -1539,7 +1549,7 @@ version = "1.1.7"
 [[deps.MbedTLS_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
-version = "2.28.2+0"
+version = "2.28.2+1"
 
 [[deps.MicroMamba]]
 deps = ["Pkg", "Scratch", "micromamba_jll"]
@@ -1569,7 +1579,7 @@ version = "0.3.4"
 
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
-version = "2022.10.11"
+version = "2023.1.10"
 
 [[deps.Multisets]]
 git-tree-sha1 = "8d852646862c96e226367ad10c8af56099b4047e"
@@ -1618,7 +1628,7 @@ version = "1.3.5+1"
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
-version = "0.3.21+4"
+version = "0.3.23+2"
 
 [[deps.OpenEXR]]
 deps = ["Colors", "FileIO", "OpenEXR_jll"]
@@ -1635,7 +1645,7 @@ version = "3.1.4+0"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+0"
+version = "0.8.1+2"
 
 [[deps.OpenML]]
 deps = ["ARFFFiles", "HTTP", "JSON", "Markdown", "Pkg", "Scratch"]
@@ -1681,7 +1691,7 @@ version = "1.6.2"
 [[deps.PCRE2_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "efcefdf7-47ab-520b-bdef-62a2eaa19f15"
-version = "10.42.0+0"
+version = "10.42.0+1"
 
 [[deps.PDMats]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse"]
@@ -1746,7 +1756,7 @@ version = "0.42.2+0"
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-version = "1.9.2"
+version = "1.10.0"
 
 [[deps.PkgVersion]]
 deps = ["Pkg"]
@@ -1863,7 +1873,7 @@ deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
 uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 
 [[deps.Random]]
-deps = ["SHA", "Serialization"]
+deps = ["SHA"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [[deps.RangeArrays]]
@@ -2064,6 +2074,7 @@ version = "1.1.1"
 [[deps.SparseArrays]]
 deps = ["Libdl", "LinearAlgebra", "Random", "Serialization", "SuiteSparse_jll"]
 uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+version = "1.10.0"
 
 [[deps.SpecialFunctions]]
 deps = ["IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]
@@ -2117,7 +2128,7 @@ version = "3.2.0"
 [[deps.Statistics]]
 deps = ["LinearAlgebra", "SparseArrays"]
 uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
-version = "1.9.0"
+version = "1.10.0"
 
 [[deps.StatsAPI]]
 deps = ["LinearAlgebra"]
@@ -2159,9 +2170,9 @@ deps = ["Libdl", "LinearAlgebra", "Serialization", "SparseArrays"]
 uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
 
 [[deps.SuiteSparse_jll]]
-deps = ["Artifacts", "Libdl", "Pkg", "libblastrampoline_jll"]
+deps = ["Artifacts", "Libdl", "libblastrampoline_jll"]
 uuid = "bea87d4a-7f5b-5778-9afe-8cc45184846c"
-version = "5.10.1+6"
+version = "7.2.1+1"
 
 [[deps.TOML]]
 deps = ["Dates"]
@@ -2325,7 +2336,7 @@ version = "1.5.0+0"
 [[deps.Zlib_jll]]
 deps = ["Libdl"]
 uuid = "83775a58-1f1d-513f-b197-d71354ab007a"
-version = "1.2.13+0"
+version = "1.2.13+1"
 
 [[deps.isoband_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -2348,7 +2359,7 @@ version = "0.15.1+0"
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.8.0+0"
+version = "5.8.0+1"
 
 [[deps.libfdk_aac_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -2388,7 +2399,7 @@ version = "1.52.0+1"
 [[deps.p7zip_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
-version = "17.4.0+0"
+version = "17.4.0+2"
 
 [[deps.x264_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
