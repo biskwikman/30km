@@ -49,6 +49,7 @@ begin
 	linewidth = 3
 	reglinewidth = 7
 	yearformat = xs -> ["'$(SubString(string(x), 3,4))" for x in xs]
+	xticks = 2000:2:2020
 end
 
 # ╔═╡ 178b80c2-4239-4866-b115-82de5e0a3f60
@@ -72,7 +73,6 @@ begin
 	mask_file = "./AsiaMIP_qdeg_gosat2.byt"
 	sample_file = "./modis_data/MOD11A2.061/MONTH/MOD11A2.061.LST_Day.GLOBAL.30km.2021.degC.mon.bsq.flt"
 	years = range(2000, 2020)
-	xticks = years[1:end]
 	mod11a2 = ["LST_Day", "LST_Night"]
 	mod13a2 = ["EVI", "NDVI"]
 	mod15a2 = ["Fpar", "Lai"]
