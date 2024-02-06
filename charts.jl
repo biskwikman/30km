@@ -43,7 +43,7 @@ begin
 	legendlabelsize = 30
 	legendtitlesize = 30
 	legendwidth = 120
-	regionnamefontsize = 35
+	regionnamefontsize = 40
 	axistitlesize = 38
 	ticklabelsize = 38
 	linewidth = 3
@@ -337,7 +337,7 @@ begin
 	grids_pres = [ga_pres, gb_pres]
 	Label(gl_pres[1,1], region_name, fontsize = regionnamefontsize, tellwidth=false)
 	for (i, dataset) in enumerate(chart_order_pres)
-		i == length(chart_order_pres) ? xlabel = L"Years" : xlabel = ""
+		i == length(chart_order_pres) ? xlabel = L"Year" : xlabel = ""
 		mean005 = mean(chart_data[dataset]["005"][1:6])
 		mean006 = mean(chart_data[dataset]["006"][1:6])
 		mean061 = mean(chart_data[dataset]["061"][1:6])
@@ -448,9 +448,9 @@ end
 # ╔═╡ 2b5ee6e5-2c7e-4391-9132-5eb0a3cdf02e
 html"""<style>
 main {
-    max-width: 82%;
-    margin-left: 1%;
-    margin-right: 2% !important;
+    max-width: 70%;
+    margin-left: 3%;
+    margin-right: 3% !important;
 }
 """
 
