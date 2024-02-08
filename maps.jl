@@ -1,171 +1,193 @@
 ### A Pluto.jl notebook ###
-# v0.19.37
+# v0.19.38
 
 using Markdown
 using InteractiveUtils
+
+# ╔═╡ 670288a6-a497-4c01-ab47-da2d92804e53
+begin
+	using Serialization
+	using FileIO
+	using JLD2
+	# replace!(trend_array, missing => -9999.0)
+	# out_array = convert(Array{Float32}, trend_array)
+	# jldsave("./Annual_Trend_Data_2.jld2"; lai=trend_array)
+end
 
 # ╔═╡ b7cede9c-9ccb-4e6e-9e97-d85f1d4c9907
 begin
 	using Printf
 	using CairoMakie
 	using MLJ
-	import MLJScikitLearnInterface
+	using MLJScikitLearnInterface
+		TheilSenRegressor = MLJScikitLearnInterface.TheilSenRegressor
+		ts_regr = TheilSenRegressor()
 	using Statistics
 	using DataFrames
 	using PythonCall
-	using PlutoUI
+	using Base.Threads
 end
 
-# ╔═╡ e7f85df5-fe7c-4273-9602-39c6242b52d5
-# Chart Variables
+# ╔═╡ 991ce1cf-ea03-474f-a1a9-82fabcc572fd
+# heatmap(trend_array[:,:,1])
+# heatmap(yearly_aves[:,:,15,1])
+
+# ╔═╡ 0686d932-bd34-4e21-873f-2fbdca2c0c6a
+# count(i -> i == -9998.0, skipmissing(trend_array))
+
+# ╔═╡ cba30637-41d6-4722-b437-096bbf1e6145
 begin
-	xlabels = ["60°E","80°E","100°E","120°E","140°E","160°E","180°E"]
-	years = range(2000, 2020)
-end
+	function create_trend_array(yearly_aves::AbstractArray, ts_regr)
+		years = 2000:2020
 
-# ╔═╡ 13d4496d-372e-4e5b-b263-48aa7cc8fd4b
-# Create arrays of averaged data
-function create_averages(product, dataset, unit, areas, sample_missing)
-	product_means = Dict(
-			"005"=>Vector{Vector{Float64}}(),
-			"006"=>Vector{Vector{Float64}}(),
-			"061"=>Vector{Vector{Float64}}(),
-	)
+		df = DataFrame(years = convert.(Float32, years))
+		trend_array = Array{Union{Missing, Float32}}(undef, (480, 360, 3))
+
+		mach = machine
 	
-	# for each year
-	for i in string.(collect(years))
-
-		# For each version in each year
-		for (k, v) in product_means
-
-			filename = @sprintf("%s.%s.%s.GLOBAL.30km.%s.%s.mon.bsq.flt", product, k, dataset, i, unit)
-			filepath = @sprintf("./modis_data/%s.%s/MONTH/%s", product, k, filename)
-
-			# push!(v, get_monthly_vals(filepath, areas, sample_missing))
+		for (i, a) in collect(enumerate(eachslice(yearly_aves[:,:,:,:], dims=(1,2,4))))
+			if count(ismissing, a) == length(a)
+				trend_array[i] = missing
+				continue
+			# elseif product == "MOD15A2H" && any(x -> x >= 249.0, a)
+			# 	trend_array[i] = -9998
+			elseif count(!ismissing, a) == 16 && count(ismissing, a[17:21]) == 5 
+				a = convert(Vector{Float32}, collect(skipmissing(a)))
+				mach = machine(ts_regr, df[1:16, [:years]], a)
+			else
+				a = convert(Vector{Float32}, a)
+				mach = machine(ts_regr, df[:, [:years]], a)
+			end
+			fit!(mach, verbosity=0)
+			slope_array = pyconvert(Vector{Float32}, fitted_params(mach).coef)
+			trend_array[i] = slope_array[1]
 		end
+		return trend_array
 	end
-	return product_means
-end
-
-# ╔═╡ c3ff0e74-21f8-11ee-0595-15f127cac0ec
-# Global Variables
-begin
-	areas_file = "./AsiaMIP_qdeg_area.flt"
-	mask_file = "./AsiaMIP_qdeg_gosat2.byt"
-	sample_file = "./modis_data/MOD11A2.061/MONTH/MOD11A2.061.LST_Day.GLOBAL.30km.2021.degC.mon.bsq.flt"
-	xticks = years[1:end]
-	versions = ["005", "006", "061"]
-	mod11a2 = ["LST_Day", "LST_Night"]
-	mod13a2 = ["EVI", "NDVI"]
-	mod15a2 = ["Fpar", "Lai"]
-	# datasets = ["LST_Day", "LST_Night", "EVI", "NDVI", "Fpar", "Lai"]
-	products = Dict(
-		"MOD11A2" => mod11a2,
-		"MOD13A2" => mod13a2,
-		"MOD15A2H" => mod15a2,
-	)
+	# trend_array = create_trend_array(yearly_aves, ts_regr)
 end
 
 # ╔═╡ b178b88a-a67f-48d5-9bca-d31521a1b68d
 begin
-	product = "MOD15A2H"
-	dataset = "Lai"
-	product == "MOD11A2" ? unit = "degC" : unit = "NA"
-	
-	# Need to extend this array for years
-	all_versions = Array{Union{Missing, Float32}}(undef, (480, 360, 12, 21, 3))
-	for (iv, version) in enumerate(versions)
-		all_months = Array{Union{Missing, Float32}}(undef, (480, 360, 12, 21))
-		for (i, year) in enumerate(years)
-			
-			if year in 2016:2020 && version == "005"
-				all_months[:,:,:,i] .= missing
-				continue
+	# product = "MOD15A2H"
+	# dataset = "Lai"
+
+	function create_all_versions(product::String, dataset::String)
+		product == "MOD11A2" ? unit = "degC" : unit = "NA"
+		versions = ["005", "006", "061"]
+		years = 2000:2020
+		
+		# Need to extend this array for years
+		all_versions = Array{Union{Missing, Float32}}(undef, (480, 360, 12, 21, 3))
+		for (iv, version) in enumerate(versions)
+			all_months = Array{Union{Missing, Float32}}(undef, (480, 360, 12, 21))
+			for (i, year) in enumerate(years)
+				if year in 2016:2020 && version == "005"
+					all_months[:,:,:,i] .= missing
+					continue
+				end
+				year = string(year)
+				filename = @sprintf("%s.%s.%s.GLOBAL.30km.%s.%s.mon.bsq.flt", product, version, dataset, year, unit)
+				filepath = @sprintf("./modis_data/%s.%s/MONTH/%s", product, version, filename)
+				
+				data = Array{Float32}(undef, (1440, 720, 12))
+				read!(filepath, data)
+				data = view(data, 961:1440, 41:400, :)
+				data = reverse(data, dims=2)
+				
+				all_months[:,:,:,i] = data
 			end
-			
-			year = string(year)
-			filename = @sprintf("%s.%s.%s.GLOBAL.30km.%s.%s.mon.bsq.flt", product, version, dataset, year, unit)
-			filepath = @sprintf("./modis_data/%s.%s/MONTH/%s", product, version, filename)
-			
-			data = Array{Float32}(undef, (1440, 720, 12))
-			read!(filepath, data)
-			data = view(data, 961:1440, 41:400, :)
-			data = reverse(data, dims=2)
-			
-			all_months[:,:,:,i] = data
+			all_versions[:,:,:,:,iv] = all_months
 		end
-		all_versions[:,:,:,:,iv] = all_months
-	end
-	all_versions = convert(Array{Union{Missing, Float32}}, all_versions)
-	replace!(all_versions, -9999 => missing)
-end
-
-# ╔═╡ 8a8c8864-8387-4ca4-8851-4b0cd2e2ff9f
-begin
-	yearly_aves = Array{Union{Missing, Float32}}(undef, (480, 360, 16, 3))
-	for v in 1:3
-		for y in 1:16
-			year = Array{Union{Missing, Float32}}(undef, (480, 360))
-			mean!(year, all_versions[:,:,:,y,v])
-			yearly_aves[:,:,y, v] = year
-		end
+		all_versions = convert(Array{Union{Missing, Float32}}, all_versions);
+		return replace!(all_versions, -9999 => missing);
 	end
 end
 
-# ╔═╡ 0903d2e8-b084-4c7c-9c5a-3406d86b4f2f
-function get_valid_areas()
-	areas = Array{Float32}(undef, (480, 360))
-	read!(areas_file, areas)
-	areas = convert(Array{Union{Missing, Float32}}, areas)
-	replace!(areas, -9999.0 => missing)
-	return areas
+# ╔═╡ 31a76310-331d-4dd8-9620-77b20a731e99
+begin
+	function create_yearly_averages(all_versions::AbstractArray)
+		yearly_aves::Array{Union{Missing, Float32}} = mean.(skipmissing.(eachslice(all_versions; dims=(1,2,4,5))))
+		eachslice(all_versions; dims=(1,2,4,5))
+		replace!(yearly_aves, NaN => missing);
+	end
+	# yearly_aves = create_yearly_averages(all_versions);
 end
 
-# ╔═╡ fa13a69c-d1de-417c-8b50-3e67956812a6
-# Get Cartesian Indices for regions
+# ╔═╡ 2fca9a4e-65c6-4d5a-bb4f-08d523d9a517
 begin
-	regions_array = Array{UInt8}(undef, (480, 360))
-	read!(mask_file, regions_array)
-	siberia_idx = findall(x -> x in(range(1,4)), regions_array)
-	easia_idx = findall(x -> x == 6, regions_array)
-	sasia_idx = findall(x -> x == 7, regions_array)
-	seasia_idx = findall(x -> x in(range(8,9)), regions_array)
-	regions_idx = [siberia_idx, easia_idx, sasia_idx, seasia_idx]
-
-	regions = Dict(
-		"East Asia" => easia_idx,
-		"Southeast Asia" => seasia_idx,
-		"South Asia" => sasia_idx,
-		"Siberia" => siberia_idx,
+	prod_dataset = (
+		"MOD15A2H" => "Lai", 
+		"MOD15A2H" => "Fpar",
+		"MOD13A2" => "EVI",
+		"MOD13A2" => "NDVI",
+		"MOD11A2" => "LST_Day",
+		"MOD11A2" => "LST_Night",
 	)
+
+	trend_arrays = Dict()
+	for (product, dataset) in prod_dataset
+		all_versions = create_all_versions(product, dataset)
+		yearly_aves = create_yearly_averages(all_versions)
+		trend_array = create_trend_array(yearly_aves, ts_regr)
+		trend_arrays[dataset] = trend_array
+	end
 end
 
 # ╔═╡ bbb3ee9a-4bcd-421d-9f3c-1812f1667328
 # Get mean of every mesh datum in specified area per month
-function get_monthly_vals(filepath, areas, sample_missing)
-	# Create appropriately sized Array and read data into it
-	data = Array{Float32}(undef, (1440, 720, 12))
-	read!(filepath, data)
-	# Select only Asia data
-	asia = view(data, 961:1440, 41:400, :)
-	# Restrict data to either Missing or Float32
-	asia = convert(Array{Union{Missing, Float32}}, asia)
-	# Replace -9999 values with missing
-	replace!(asia, -9999 => missing)	
-	# Apply Weights
-	file_missing = findall(x -> ismissing(x), asia[:,:,1])
-	result = areas .* asia
-	areas[file_missing] .= missing
-	total_area = sum(skipmissing(areas[regions[region_name]]))
-	monthly_vals = Vector{Float32}()
+# function get_monthly_vals(filepath, areas, sample_missing)
+# 	# Create appropriately sized Array and read data into it
+# 	data = Array{Float32}(undef, (1440, 720, 12))
+# 	read!(filepath, data)
+# 	# Select only Asia data
+# 	asia = view(data, 961:1440, 41:400, :)
+# 	# Restrict data to either Missing or Float32
+# 	asia = convert(Array{Union{Missing, Float32}}, asia)
+# 	# Replace -9999 values with missing
+# 	replace!(asia, -9999 => missing)	
+# 	# Apply Weights
+# 	file_missing = findall(x -> ismissing(x), asia[:,:,1])
+# 	result = areas .* asia
+# 	areas[file_missing] .= missing
+# 	total_area = sum(skipmissing(areas[regions[region_name]]))
+# 	monthly_vals = Vector{Float32}()
 
-	# For each month in result
-	for i = 1:12
-		# Sum all results by month to find monthly average
-		append!(monthly_vals, sum(skipmissing(result[:,:,i][regions[region_name]]))/total_area)
-	end
-	return monthly_vals
-end
+# 	# For each month in result
+# 	for i = 1:12
+# 		# Sum all results by month to find monthly average
+# 		append!(monthly_vals, sum(skipmissing(result[:,:,i][regions[region_name]]))/total_area)
+# 	end
+# 	return monthly_vals
+# end
+
+# ╔═╡ 0903d2e8-b084-4c7c-9c5a-3406d86b4f2f
+# function get_valid_areas()
+# 	areas = Array{Float32}(undef, (480, 360))
+# 	read!(areas_file, areas)
+# 	areas = convert(Array{Union{Missing, Float32}}, areas)
+# 	replace!(areas, -9999.0 => missing)
+# 	return areas
+# end
+
+# ╔═╡ c3ff0e74-21f8-11ee-0595-15f127cac0ec
+# Global Variables
+# begin
+	# areas_file = "./AsiaMIP_qdeg_area.flt"
+	# mask_file = "./AsiaMIP_qdeg_gosat2.byt"
+	# sample_file = "./modis_data/MOD11A2.061/MONTH/MOD11A2.061.LST_Day.GLOBAL.30km.2021.degC.mon.bsq.flt"
+	# xticks = years[1:end]
+	# versions = ["005", "006", "061"]
+	# mod11a2 = ["LST_Day", "LST_Night"]
+	# mod13a2 = ["EVI", "NDVI"]
+	# mod15a2 = ["Fpar", "Lai"]
+	# datasets = ["LST_Day", "LST_Night", "EVI", "NDVI", "Fpar", "Lai"]
+	# products = Dict(
+	# 	"MOD11A2" => mod11a2,
+	# 	"MOD13A2" => mod13a2,
+	# 	"MOD15A2H" => mod15a2,
+	# )
+# end
 
 # ╔═╡ 6bb1c85b-bd07-4d6a-967e-d89b80d64626
 html"""<style>
@@ -176,49 +198,6 @@ main {
 }
 """
 
-# ╔═╡ 3badc18c-a320-441a-b03e-51e8adc8d525
-begin
-	TheilSenRegressor = @load TheilSenRegressor pkg=MLJScikitLearnInterface
-	ts_regr = TheilSenRegressor()
-end
-
-# ╔═╡ cba30637-41d6-4722-b437-096bbf1e6145
-begin
-	
-	df = DataFrame(years = convert.(Float32, years))
-	trend_array = Array{Union{Missing, Float32}}(undef, (480, 360, 3))
-
-	for (i, a) in enumerate(eachslice(yearly_aves[:,:,:,:], dims=(1,2,4)))
-		if ismissing(sum(a))
-			trend_array[i] = missing
-		# elseif product == "MOD15A2H" && any(x -> x >= 249.0, a)
-		# 	trend_array[i] = -9998
-		else
-			a = convert(Vector{Float32}, a)
-			mach = machine(ts_regr, df[:, [:years]], a)
-			fit!(mach, verbosity=0)
-			slope_array = pyconvert(Vector{Float32}, fitted_params(mach).coef)
-			trend_array[i] = slope_array[1]
-		end
-	end
-end
-
-# ╔═╡ 670288a6-a497-4c01-ab47-da2d92804e53
-begin
-	using Serialization
-	using FileIO
-	using JLD2
-	# replace!(trend_array, missing => -9999.0)
-	# out_array = convert(Array{Float32}, trend_array)
-	jldsave("./Annual_Trend_Data_2.jld2"; lai=trend_array)
-end
-
-# ╔═╡ 991ce1cf-ea03-474f-a1a9-82fabcc572fd
-heatmap(trend_array[:,:,3])
-
-# ╔═╡ 0686d932-bd34-4e21-873f-2fbdca2c0c6a
-count(i -> i == -9998.0, skipmissing(trend_array))
-
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -228,7 +207,6 @@ FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 MLJ = "add582a8-e3ab-11e8-2d5e-e98b27df1bc7"
 MLJScikitLearnInterface = "5ae90465-5518-4432-b9d2-8a1def2f0cab"
-PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
 Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
@@ -241,7 +219,6 @@ FileIO = "~1.16.1"
 JLD2 = "~0.4.31"
 MLJ = "~0.19.2"
 MLJScikitLearnInterface = "~0.4.0"
-PlutoUI = "~0.7.51"
 PythonCall = "~0.9.13"
 """
 
@@ -251,7 +228,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.0"
 manifest_format = "2.0"
-project_hash = "29252af857655aba060d3699aaeda11e749c1971"
+project_hash = "046168afb4541d97ae1ae635088032a4636521e1"
 
 [[deps.ARFFFiles]]
 deps = ["CategoricalArrays", "Dates", "Parsers", "Tables"]
@@ -274,12 +251,6 @@ weakdeps = ["ChainRulesCore", "Test"]
 git-tree-sha1 = "222ee9e50b98f51b5d78feb93dd928880df35f06"
 uuid = "398f06c4-4d28-53ec-89ca-5b2656b7603d"
 version = "0.3.0"
-
-[[deps.AbstractPlutoDingetjes]]
-deps = ["Pkg"]
-git-tree-sha1 = "c278dfab760520b8bb7e9511b968bf4ba38b7acc"
-uuid = "6e696c72-6542-2067-7265-42206c756150"
-version = "1.2.3"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "faa260e4cb5aba097a73fab382dd4b5819d8ec8c"
@@ -878,24 +849,6 @@ git-tree-sha1 = "f218fe3736ddf977e0e772bc9a586b2383da2685"
 uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
 version = "0.3.23"
 
-[[deps.Hyperscript]]
-deps = ["Test"]
-git-tree-sha1 = "179267cfa5e712760cd43dcae385d7ea90cc25a4"
-uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
-version = "0.0.5"
-
-[[deps.HypertextLiteral]]
-deps = ["Tricks"]
-git-tree-sha1 = "7134810b1afce04bbc1045ca1985fbe81ce17653"
-uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
-version = "0.9.5"
-
-[[deps.IOCapture]]
-deps = ["Logging", "Random"]
-git-tree-sha1 = "8b72179abc660bfab5e28472e019392b97d0985c"
-uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
-version = "0.2.4"
-
 [[deps.ImageAxes]]
 deps = ["AxisArrays", "ImageBase", "ImageCore", "Reexport", "SimpleTraits"]
 git-tree-sha1 = "2e4520d67b0cef90865b3ef727594d2a58e0e1f8"
@@ -1233,11 +1186,6 @@ weakdeps = ["CategoricalArrays"]
 
     [deps.LossFunctions.extensions]
     LossFunctionsCategoricalArraysExt = "CategoricalArrays"
-
-[[deps.MIMEs]]
-git-tree-sha1 = "65f28ad4b594aebe22157d6fac869786a255b7eb"
-uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
-version = "0.1.4"
 
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl"]
@@ -1588,12 +1536,6 @@ deps = ["ColorSchemes", "Colors", "Dates", "PrecompileTools", "Printf", "Random"
 git-tree-sha1 = "862942baf5663da528f66d24996eb6da85218e76"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
 version = "1.4.0"
-
-[[deps.PlutoUI]]
-deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
-git-tree-sha1 = "68723afdb616445c6caaef6255067a8339f91325"
-uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.55"
 
 [[deps.PolygonOps]]
 git-tree-sha1 = "77b3d3605fc1cd0b42d95eba87dfcd2bf67d5ff6"
@@ -2034,11 +1976,6 @@ weakdeps = ["Random", "Test"]
     [deps.TranscodingStreams.extensions]
     TestExt = ["Test", "Random"]
 
-[[deps.Tricks]]
-git-tree-sha1 = "eae1bb484cd63b36999ee58be2de6c178105112f"
-uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
-version = "0.1.8"
-
 [[deps.TriplotBase]]
 git-tree-sha1 = "4d4ed7f294cda19382ff7de4c137d24d16adc89b"
 uuid = "981d1d27-644d-49a2-9326-4793e63143c3"
@@ -2227,18 +2164,15 @@ version = "3.5.0+0"
 # ╔═╡ Cell order:
 # ╠═670288a6-a497-4c01-ab47-da2d92804e53
 # ╠═991ce1cf-ea03-474f-a1a9-82fabcc572fd
-# ╠═e7f85df5-fe7c-4273-9602-39c6242b52d5
 # ╠═0686d932-bd34-4e21-873f-2fbdca2c0c6a
 # ╠═cba30637-41d6-4722-b437-096bbf1e6145
-# ╠═8a8c8864-8387-4ca4-8851-4b0cd2e2ff9f
 # ╠═b178b88a-a67f-48d5-9bca-d31521a1b68d
+# ╠═31a76310-331d-4dd8-9620-77b20a731e99
+# ╠═2fca9a4e-65c6-4d5a-bb4f-08d523d9a517
 # ╠═bbb3ee9a-4bcd-421d-9f3c-1812f1667328
-# ╠═13d4496d-372e-4e5b-b263-48aa7cc8fd4b
 # ╠═0903d2e8-b084-4c7c-9c5a-3406d86b4f2f
-# ╠═fa13a69c-d1de-417c-8b50-3e67956812a6
 # ╠═c3ff0e74-21f8-11ee-0595-15f127cac0ec
-# ╠═6bb1c85b-bd07-4d6a-967e-d89b80d64626
-# ╠═3badc18c-a320-441a-b03e-51e8adc8d525
 # ╠═b7cede9c-9ccb-4e6e-9e97-d85f1d4c9907
+# ╠═6bb1c85b-bd07-4d6a-967e-d89b80d64626
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
