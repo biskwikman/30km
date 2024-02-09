@@ -25,11 +25,6 @@ end
 # ╔═╡ 318cbb16-5719-4760-99fe-eefc99c5af0b
 @bind dataset Select(["lai", "ndvi", "evi", "lst_day", "lst_night"])
 
-# ╔═╡ 9420ed6a-7a6d-485c-8829-1880425f980a
-for i in 1:2:10
-	println(i)
-end
-
 # ╔═╡ 7e8bd1a0-011b-46b1-8ba0-cf58d3458876
 begin
 	function load_trend_array()
@@ -56,7 +51,8 @@ end
 begin
 	function create_maps(trend_array)
 		occursin("lst", dataset) ? colormap = :balance : colormap = :bam
-		dataset ∉ ("lst_day", "lst_night") ? colormap_label = L"KgC\; m^2\; year^{-1}" : colormap_label = L"°C"
+
+		dataset ∉ ("lst_day", "lst_night") ? colormap_label = L"%$(uppercase(dataset))\; year^{-1}" : colormap_label = L"°C\; year^{-1}"
 		
 		fig = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1800, 1200))
 		ticklabelsize=32
@@ -93,11 +89,24 @@ begin
 		hm1 = heatmap!(ax1, 60:180, 10:80, trend_array[:,:,1]; colorrange=(range_min, range_max), colormap=colormap)
 		hm2 = heatmap!(ax2, 60:180, 10:80, trend_array[:,:,2], colorrange=(range_min, range_max), colormap=colormap)
 		hm3 = heatmap!(ax3, 60:180, 10:80, trend_array[:,:,3], colorrange=(range_min, range_max), colormap=colormap)
-		Colorbar(fig[2,2], hm1, tellwidth=false, tellheight=false, halign=:left, ticklabelsize=ticklabelsize, label=colormap_label, labelsize=colorbarlabelsize, vertical=true)
+
+		digits = 3
+		println(range_min, " ", digits)
+		
+		Colorbar(
+			fig[2,2], hm1, tellwidth=false, tellheight=false, halign=:left,
+			ticklabelsize=ticklabelsize, label=colormap_label, labelsize=colorbarlabelsize,
+			ticks=[
+				round(range_min, digits=digits, RoundUp),
+				round(range_min/2, digits=digits),
+				0,
+				round(range_max/2, digits=digits),
+				round(range_max, digits=digits, RoundDown),
+			],
+		)
+		
 		Label(fig[0,:], replace(uppercase(dataset), "_"=>" ", "DAY"=>"Day", "NIGHT"=>"Night") * " Interannual Trend", fontsize=32)
 		colgap!(fig.layout, 1, colspacing)
-		# colgap!(fig.layout, 2, colspacing)
-	
 		return fig
 	end
 	create_maps(trend_array)
@@ -1777,7 +1786,6 @@ version = "3.5.0+0"
 # ╔═╡ Cell order:
 # ╠═318cbb16-5719-4760-99fe-eefc99c5af0b
 # ╠═52ee4140-3f41-4a19-a08d-fa3386802fc6
-# ╠═9420ed6a-7a6d-485c-8829-1880425f980a
 # ╠═79e57fa6-f3e4-4963-bc9d-3f0977c1c357
 # ╠═57dc2646-e7eb-4561-b2af-f2337bbd06aa
 # ╠═3b92cf5f-e72e-48de-99ec-38e8d974258d
