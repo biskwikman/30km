@@ -4,16 +4,6 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 670288a6-a497-4c01-ab47-da2d92804e53
-begin
-	using Serialization
-	using FileIO
-	using JLD2
-	# replace!(trend_array, missing => -9999.0)
-	# out_array = convert(Array{Float32}, trend_array)
-	# jldsave("./Annual_Trend_Data_2.jld2"; lai=trend_array)
-end
-
 # ╔═╡ b7cede9c-9ccb-4e6e-9e97-d85f1d4c9907
 begin
 	using Printf
@@ -27,10 +17,6 @@ begin
 	using PythonCall
 	using Base.Threads
 end
-
-# ╔═╡ 991ce1cf-ea03-474f-a1a9-82fabcc572fd
-# heatmap(trend_array[:,:,1])
-# heatmap(yearly_aves[:,:,15,1])
 
 # ╔═╡ 0686d932-bd34-4e21-873f-2fbdca2c0c6a
 # count(i -> i == -9998.0, skipmissing(trend_array))
@@ -54,6 +40,8 @@ begin
 			elseif count(!ismissing, a) == 16 && count(ismissing, a[17:21]) == 5 
 				a = convert(Vector{Float32}, collect(skipmissing(a)))
 				mach = machine(ts_regr, df[1:16, [:years]], a)
+			elseif ismissing(sum(a))
+				trend_array[i] = missing
 			else
 				a = convert(Vector{Float32}, a)
 				mach = machine(ts_regr, df[:, [:years]], a)
@@ -133,6 +121,27 @@ begin
 		trend_arrays[dataset] = trend_array
 	end
 end
+
+# ╔═╡ 670288a6-a497-4c01-ab47-da2d92804e53
+begin
+	using Serialization
+	using FileIO
+	using JLD2
+	# replace!(trend_array, missing => -9999.0)
+	# out_array = convert(Array{Float32}, trend_array)
+	jldsave("./Annual_Trend_Data_2.jld2"; 
+		lai = trend_arrays["Lai"], 
+		fpar = trend_arrays["Fpar"], 
+		evi = trend_arrays["EVI"],
+		ndvi = trend_arrays["NDVI"],
+		lst_day = trend_arrays["LST_Day"],
+		lst_night = trend_arrays["LST_Night"],
+	)
+end
+
+# ╔═╡ 991ce1cf-ea03-474f-a1a9-82fabcc572fd
+heatmap(trend_arrays["LST_Night"][:,:,1])
+# heatmap(yearly_aves[:,:,15,1])
 
 # ╔═╡ bbb3ee9a-4bcd-421d-9f3c-1812f1667328
 # Get mean of every mesh datum in specified area per month

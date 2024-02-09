@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.37
+# v0.19.38
 
 using Markdown
 using InteractiveUtils
@@ -25,27 +25,21 @@ end
 # ╔═╡ 318cbb16-5719-4760-99fe-eefc99c5af0b
 @bind dataset Select(["lai", "ndvi", "evi", "lst_day", "lst_night"])
 
-# ╔═╡ 8af751ba-6781-418c-8487-964002e478b1
-if occursin("lst", dataset)
-	colormap = :balance
-else
-	colormap = :bam
+# ╔═╡ 9420ed6a-7a6d-485c-8829-1880425f980a
+for i in 1:2:10
+	println(i)
 end
 
 # ╔═╡ 7e8bd1a0-011b-46b1-8ba0-cf58d3458876
 begin
-	f = jldopen("./Annual_Trend_Data.jld2")
-	trend_array = f[dataset]
-	trend_array = convert(Array{Union{Missing, Float32}}, trend_array)
-	replace!(trend_array, -9999.0 => missing)
-	trend_array
-end
-
-# ╔═╡ b807ac0c-bbb1-4e54-aa2f-18f94ab77a0e
-begin
-	trend_vec = vec(trend_array)
-	filt_vec = filter(x -> !ismissing(x), trend_vec)
-	sort(filt_vec)
+	function load_trend_array()
+		f = jldopen("./Annual_Trend_Data_2.jld2")
+		trend_array = f[dataset]
+		trend_array = convert(Array{Union{Missing, Float32}}, trend_array)
+		replace!(trend_array, -9999.0 => missing)
+		return trend_array
+	end
+	trend_array = load_trend_array()
 end
 
 # ╔═╡ 79e57fa6-f3e4-4963-bc9d-3f0977c1c357
@@ -60,46 +54,53 @@ end
 
 # ╔═╡ 52ee4140-3f41-4a19-a08d-fa3386802fc6
 begin
-	fig = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (2200, 700))
-	xticklabelsize=24
-	yticklabelsize=24
-	titlesize=28
-
-	ax1 = Axis(fig[1,1], title="v05",
-		xtickformat = x -> string.(Int.(x)) .* "°E",
-		ytickformat = y -> string.(Int.(y)) .* "°N",
-		xgridvisible=false,
-		ygridvisible=false,
-		xticklabelsize=xticklabelsize,
-		yticklabelsize=yticklabelsize,
-		titlesize=titlesize,
-	)
-	ax2 = Axis(fig[1,2], title="v06",
-		xtickformat = x -> string.(Int.(x)) .* "°E",
-		ytickformat = y -> string.(Int.(y)) .* "°N",
-		xgridvisible=false,
-		ygridvisible=false,
-		xticklabelsize=xticklabelsize,
-		yticklabelsize=yticklabelsize,
-		titlesize=titlesize,
-	)
-	ax3 = Axis(fig[1,3], title="v6.1",
-		xtickformat = x -> string.(Int.(x)) .* "°E",
-		ytickformat = y -> string.(Int.(y)) .* "°N",
-		xgridvisible=false,
-		ygridvisible=false,
-		xticklabelsize=xticklabelsize,
-		yticklabelsize=yticklabelsize,
-		titlesize=titlesize,
-	)
-
-	hm1 = heatmap!(ax1, 60:180, 10:80, trend_array[:,:,1]; colorrange=(range_min, range_max), colormap=colormap, title="v05")
-	hm2 = heatmap!(ax2, 60:180, 10:80, trend_array[:,:,2], colorrange=(range_min, range_max), colormap=colormap, title="v06")
-	hm3 = heatmap!(ax3, 60:180, 10:80, trend_array[:,:,3], colorrange=(range_min, range_max), colormap=colormap, title="v6.1")
-	Colorbar(fig[1,4], hm1, tellwidth=true, halign=:left, ticklabelsize=24)
-	Label(fig[0,:], uppercase(dataset) * " Trend", fontsize=32)
-
-	fig
+	function create_maps(trend_array)
+		occursin("lst", dataset) ? colormap = :balance : colormap = :bam
+		dataset ∉ ("lst_day", "lst_night") ? colormap_label = L"KgC\; m^2\; year^{-1}" : colormap_label = L"°C"
+		
+		fig = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1800, 1200))
+		ticklabelsize=32
+		colorbarlabelsize=32
+		titlesize=28
+		colspacing=Relative(0.06)
+	
+		ax1 = Axis(fig[1,1], title="v05: 2000-2015",
+			xtickformat = x -> string.(Int.(x)) .* "°E",
+			ytickformat = y -> string.(Int.(y)) .* "°N",
+			xticklabelsize=ticklabelsize,
+			yticklabelsize=ticklabelsize,
+			titlesize=titlesize,
+			aspect=DataAspect(),
+		)
+		ax2 = Axis(fig[1,2], title="v06: 2000-2020",
+			xtickformat = x -> string.(Int.(x)) .* "°E",
+			ytickformat = y -> string.(Int.(y)) .* "°N",
+			xticklabelsize=ticklabelsize,
+			yticklabelsvisible=false,
+			yticksvisible=true,
+			titlesize=titlesize,
+			aspect=DataAspect(),
+		)
+		ax3 = Axis(fig[2,1], title="v6.1: 2000-2020",
+			xtickformat = x -> string.(Int.(x)) .* "°E",
+			ytickformat = y -> string.(Int.(y)) .* "°N",
+			xticklabelsize=ticklabelsize,
+			yticklabelsize=ticklabelsize,
+			titlesize=titlesize,
+			aspect=DataAspect(),
+		)
+	
+		hm1 = heatmap!(ax1, 60:180, 10:80, trend_array[:,:,1]; colorrange=(range_min, range_max), colormap=colormap)
+		hm2 = heatmap!(ax2, 60:180, 10:80, trend_array[:,:,2], colorrange=(range_min, range_max), colormap=colormap)
+		hm3 = heatmap!(ax3, 60:180, 10:80, trend_array[:,:,3], colorrange=(range_min, range_max), colormap=colormap)
+		Colorbar(fig[2,2], hm1, tellwidth=false, tellheight=false, halign=:left, ticklabelsize=ticklabelsize, label=colormap_label, labelsize=colorbarlabelsize, vertical=true)
+		Label(fig[0,:], replace(uppercase(dataset), "_"=>" ", "DAY"=>"Day", "NIGHT"=>"Night") * " Interannual Trend", fontsize=32)
+		colgap!(fig.layout, 1, colspacing)
+		# colgap!(fig.layout, 2, colspacing)
+	
+		return fig
+	end
+	create_maps(trend_array)
 end
 
 # ╔═╡ 57dc2646-e7eb-4561-b2af-f2337bbd06aa
@@ -1776,8 +1777,7 @@ version = "3.5.0+0"
 # ╔═╡ Cell order:
 # ╠═318cbb16-5719-4760-99fe-eefc99c5af0b
 # ╠═52ee4140-3f41-4a19-a08d-fa3386802fc6
-# ╠═8af751ba-6781-418c-8487-964002e478b1
-# ╠═b807ac0c-bbb1-4e54-aa2f-18f94ab77a0e
+# ╠═9420ed6a-7a6d-485c-8829-1880425f980a
 # ╠═79e57fa6-f3e4-4963-bc9d-3f0977c1c357
 # ╠═57dc2646-e7eb-4561-b2af-f2337bbd06aa
 # ╠═3b92cf5f-e72e-48de-99ec-38e8d974258d
