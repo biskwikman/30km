@@ -23,16 +23,21 @@ begin
 end
 
 # ╔═╡ 318cbb16-5719-4760-99fe-eefc99c5af0b
-@bind dataset Select(["lai", "ndvi", "evi", "lst_day", "lst_night"])
+@bind dataset Select(["lai", "ndvi", "evi", "lst_day", "lst_night", "lst"])
 
 # ╔═╡ 7e8bd1a0-011b-46b1-8ba0-cf58d3458876
 begin
 	function load_trend_array()
 		f = jldopen("./Annual_Trend_Data_2.jld2")
-		trend_array = f[dataset]
-		trend_array = convert(Array{Union{Missing, Float32}}, trend_array)
-		replace!(trend_array, -9999.0 => missing)
-		return trend_array
+		if dataset == "lst"
+			lst_day = f["lst_day"]
+			lst_night = f["lst_night"]
+		else
+			trend_array = f[dataset]
+			trend_array = convert(Array{Union{Missing, Float32}}, trend_array)
+			replace!(trend_array, -9999.0 => missing)
+			return trend_array
+		end
 	end
 	trend_array = load_trend_array()
 end
@@ -54,23 +59,23 @@ begin
 
 		dataset ∉ ("lst_day", "lst_night") ? colormap_label = L"%$(uppercase(dataset))\; year^{-1}" : colormap_label = L"°C\; year^{-1}"
 		
-		fig = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1800, 1200))
-		ticklabelsize=32
-		colorbarlabelsize=32
-		titlesize=28
-		colspacing=Relative(0.06)
+		fig = Figure(resolution = (1800, 1200))
+		ticklabelsize=45
+		colorbarlabelsize=45
+		titlesize=45
+		colspacing=Relative(0.08)
 	
 		ax1 = Axis(fig[1,1], title="v05: 2000-2015",
-			xtickformat = x -> string.(Int.(x)) .* "°E",
-			ytickformat = y -> string.(Int.(y)) .* "°N",
+			xtickformat = x -> string.(Int.(x)) .* "°",
+			ytickformat = y -> string.(Int.(y)) .* "°",
 			xticklabelsize=ticklabelsize,
 			yticklabelsize=ticklabelsize,
 			titlesize=titlesize,
 			aspect=DataAspect(),
 		)
 		ax2 = Axis(fig[1,2], title="v06: 2000-2020",
-			xtickformat = x -> string.(Int.(x)) .* "°E",
-			ytickformat = y -> string.(Int.(y)) .* "°N",
+			xtickformat = x -> string.(Int.(x)) .* "°",
+			ytickformat = y -> string.(Int.(y)) .* "°",
 			xticklabelsize=ticklabelsize,
 			yticklabelsvisible=false,
 			yticksvisible=true,
@@ -78,8 +83,8 @@ begin
 			aspect=DataAspect(),
 		)
 		ax3 = Axis(fig[2,1], title="v6.1: 2000-2020",
-			xtickformat = x -> string.(Int.(x)) .* "°E",
-			ytickformat = y -> string.(Int.(y)) .* "°N",
+			xtickformat = x -> string.(Int.(x)) .* "°",
+			ytickformat = y -> string.(Int.(y)) .* "°",
 			xticklabelsize=ticklabelsize,
 			yticklabelsize=ticklabelsize,
 			titlesize=titlesize,
@@ -105,7 +110,7 @@ begin
 			],
 		)
 		
-		Label(fig[0,:], replace(uppercase(dataset), "_"=>" ", "DAY"=>"Day", "NIGHT"=>"Night") * " Interannual Trend", fontsize=32)
+		Label(fig[0,:], replace(uppercase(dataset), "_"=>" ", "DAY"=>"Day", "NIGHT"=>"Night") * " Interannual Trend", fontsize=50)
 		colgap!(fig.layout, 1, colspacing)
 		return fig
 	end

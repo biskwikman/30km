@@ -35,21 +35,20 @@ end
 # ╔═╡ 8999ecae-84f3-40a1-af18-edc897b3f855
 @bind region_name Select(["East Asia","Southeast Asia","South Asia","Siberia"])
 
-# ╔═╡ 3ffa5b58-f446-46b4-b5ae-3277d0d089e7
-# save(@sprintf("./output/%s.png", region_name), f)
-
 # ╔═╡ 4d9e14a8-5be8-4095-b7bc-aa648a6d0d96
 begin
-	legendlabelsize = 30
-	legendtitlesize = 30
-	legendwidth = 120
-	regionnamefontsize = 40
-	axistitlesize = 38
-	ticklabelsize = 38
-	linewidth = 3
-	reglinewidth = 7
+	legendlabelsize = 40
+	legendtitlesize = 40
+	legendwidth = 150
+	versionlabelsize = 75
+	regionnamefontsize = 70
+	axistitlesize = 45
+	ticklabelsize = 50
+	linewidth = 5
+	reglinewidth = 10
 	yearformat = xs -> ["'$(SubString(string(x), 3,4))" for x in xs]
 	xticks = 2000:2:2020
+	linestyle = Linestyle([0.5, 1.0, 1.8, 3.0])
 end
 
 # ╔═╡ 178b80c2-4239-4866-b115-82de5e0a3f60
@@ -224,111 +223,11 @@ end
 # ╔═╡ 4a744ca1-592d-4081-8d81-18d3488253db
 colormap = Makie.wong_colors()
 
-# ╔═╡ eeb70443-23f3-45e9-8557-723ab1c519d6
-# Chart Builder
-begin
-
-	TheilSenRegressor = @load TheilSenRegressor pkg=MLJScikitLearnInterface
-	ts_regr = TheilSenRegressor()
-	
-	chart_order = ["LST_Day", "LST_Night", "EVI", "NDVI", "Lai"]
-
-	CairoMakie.activate!(type = "png")
-	f = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1600, 1400))
-	
-	ga = f[1, 1] = GridLayout()
-	gb = f[1, 2] = GridLayout()
-	gc = f[2, 1] = GridLayout()
-	gd = f[2, 2] = GridLayout()
-	ge = f[3, 1] = GridLayout()
-	# gf = f[3, 2] = GridLayout()
-	gl = f[0, :] = GridLayout()
-	Label(gl[1,1], region_name, fontsize = 30)
-	grids 	= 	[ga, gb, gc, gd, ge]
-	for (i, dataset) in enumerate(chart_order)
-		i == 5 ? xlabel = "Years" : xlabel = ""
-
-		mean005 = mean(chart_data[dataset]["005"][1:6])
-		mean006 = mean(chart_data[dataset]["006"][1:6])
-		mean061 = mean(chart_data[dataset]["061"][1:6])		
-		
-		chart_order[i] in ["LST_Day", "LST_Night"] ? title = replace(dataset, "_"=>" ") * " (°C)" : title = uppercase(dataset)
-
-		ax = Axis(grids[i][1,1], title=title, xlabel=xlabel, xticks=xticks, titlesize=20)
-
-		lines!(ax, years, chart_data[dataset]["005"] .- mean005, label="v05μ", color=(colormap[1], 0.3))
-	
-		lines!(ax, years, chart_data[dataset]["006"] .- mean006, label="v06μ", color=(colormap[2], 0.3))
-		
-		lines!(ax, years, chart_data[dataset]["061"] .- mean061, label="v61μ", color=(colormap[3], 0.3))
-
-		df = DataFrame(
-			years = convert.(Float32, years),
-			v05 = chart_data[dataset]["005"] .- mean005,
-			v06 = chart_data[dataset]["006"] .- mean006,
-			v61 = chart_data[dataset]["061"] .- mean061,
-		)
-
-		ts_machine_05 = machine(ts_regr, df[:, [:years]], df.v05)
-		fit!(ts_machine_05, verbosity=0)
-		regr05 = predict_mode(ts_machine_05)
-		
-		ts_machine_06 = machine(ts_regr, df[:, [:years]], df.v06)
-		fit!(ts_machine_06, verbosity=0)
-		regr06 = predict_mode(ts_machine_06)
-	
-		ts_machine_61 = machine(ts_regr, df[:, [:years]], df.v61)
-		fit!(ts_machine_61, verbosity=0)
-		regr61 = predict_mode(ts_machine_61)	
-		
-		lines!(ax, df.years, round.(regr05, digits=5), label="v05 lm", linewidth=3, linestyle=:dash, color=colormap[1])
-		lines!(ax, df.years, round.(regr06, digits=5), label="v06 lm", linewidth=3, linestyle=:dash, color=colormap[2])
-		lines!(ax, df.years, round.(regr61, digits=5), label="v61 lm", linewidth=3, linestyle=:dash, color=colormap[3])
-
-		row = ceil(i / 2)
-		row = convert(Int, row)
-		col = ceil(i / 3)
-		col = convert(Int, col)
-
-		v05_p = string(round(mk_original_test(df.v05).p, digits=3))
-		println(mk_original_test(df.v06).p)
-		v05_τ = string(round(mk_original_test(df.v05).τ, digits=3))
-		v05_test = LineElement(linewidth=2, linestyle=:dash, color=(colormap[1]))
-		v06_p = string(round(mk_original_test(df.v06).p, digits=3))
-		v06_τ = string(round(mk_original_test(df.v06).τ, digits=3))
-		v06_test = LineElement(linewidth=2, linestyle=:dash, color=(colormap[2]))
-		v61_p = string(round(mk_original_test(df.v61).p, digits=3))
-		v61_τ = string(round(mk_original_test(df.v61).τ, digits=3))
-		v61_test = LineElement(linewidth=2, linestyle=:dash, color=(colormap[3]))
-
-		
-		
-		Legend(grids[i][1,2],
-			[v05_test, v06_test, v61_test],
-			[v05_p, v06_p, v61_p],
-			"P (MK)",
-			labelsize=10,
-			titlesize=12
-		)
-
-		Legend(grids[i][1,2][2,1],
-			[v05_test, v06_test, v61_test],
-			[v05_τ, v06_τ, v61_τ],
-			"τ (MK)",
-			labelsize=10,
-			titlesize=12
-		)
-
-		if i == 5
-			Legend(f[3,2], ax, tellwidth=false, halign=:center)
-		end
-	end
-	f
-end
-
 # ╔═╡ 7cb603db-f12d-4022-96ba-a0ec3d8db383
 # Charts for presentation
 begin
+	TheilSenRegressor = @load TheilSenRegressor pkg=MLJScikitLearnInterface
+	ts_regr = TheilSenRegressor()
 	chart_order_pres = ["LST_Day", "NDVI"]
 	f_pres = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1600, 1600))
 	ga_pres = f_pres[1, 1] = GridLayout()
@@ -393,12 +292,13 @@ begin
 		fit!(ts_machine_61, verbosity=0)
 		regr61 = predict_mode(ts_machine_61)
 
-		lines!(ax, df.years, round.(regr05, digits=5), label="v05 lm", linewidth=reglinewidth, linestyle=:dash, color=colormap[1])
-		lines!(ax, df.years, round.(regr06, digits=5), label="v06 lm", linewidth=reglinewidth, linestyle=:dash, color=colormap[2])
-		lines!(ax, df.years, round.(regr61, digits=5), label="v61 lm", linewidth=reglinewidth, linestyle=:dash, color=colormap[3])
-		text!(ax, df.years[end], round.(regr05, digits=5)[end], text="V5", color=colormap[1], fontsize=40, align=(:right,:bottom))
-		text!(ax, df.years[end], round.(regr06, digits=5)[end], text="V6", color=colormap[2])
-		text!(ax, df.years[end], round.(regr61, digits=5)[end], text="V6.1", color=colormap[3])
+		lines!(ax, df.years, round.(regr05, digits=5), label="v05 lm", linewidth=reglinewidth, linestyle=linestyle, color=colormap[1])
+		lines!(ax, df.years, round.(regr06, digits=5), label="v06 lm", linewidth=reglinewidth, linestyle=linestyle, color=colormap[2])
+		lines!(ax, df.years, round.(regr61, digits=5), label="v61 lm", linewidth=reglinewidth, linestyle=linestyle, color=colormap[3])
+		text!(ax, df.years[begin], round.(regr05, digits=5)[begin], text="V5", color=colormap[1], fontsize=versionlabelsize,
+			align=(:center,:top))
+		text!(ax, df.years[11], round.(regr06, digits=5)[11], text="V6", color=colormap[2], fontsize=versionlabelsize, align=(:center,:bottom))
+		text!(ax, df.years[end], round.(regr61, digits=5)[end], text="V6.1", color=colormap[3], fontsize=versionlabelsize, align=(:right,:top))
 
 		row = ceil(i / 2)
 		row = convert(Int, row)
@@ -442,11 +342,15 @@ begin
 			if region_name in ["East Asia", "South Asia"]
 				valign=:bottom
 			end
-			Legend(f_pres[1,1], ax, tellwidth=false, halign=halign, valign=valign, margin=(5, 5, 5, 5), labelsize=30)
+			# Main legend, probably not needed anymore.
+			# Legend(f_pres[1,1], ax, tellwidth=false, halign=halign, valign=valign, margin=(5, 5, 5, 5), labelsize=30)
 		end
 	end
 	f_pres
 end
+
+# ╔═╡ 3ffa5b58-f446-46b4-b5ae-3277d0d089e7
+save(@sprintf("./output/%s.png", region_name), f_pres)
 
 # ╔═╡ 2b5ee6e5-2c7e-4391-9132-5eb0a3cdf02e
 html"""<style>
@@ -2510,9 +2414,8 @@ version = "3.5.0+0"
 # ╔═╡ Cell order:
 # ╠═8999ecae-84f3-40a1-af18-edc897b3f855
 # ╠═3ffa5b58-f446-46b4-b5ae-3277d0d089e7
-# ╠═eeb70443-23f3-45e9-8557-723ab1c519d6
-# ╠═7cb603db-f12d-4022-96ba-a0ec3d8db383
 # ╠═4d9e14a8-5be8-4095-b7bc-aa648a6d0d96
+# ╠═7cb603db-f12d-4022-96ba-a0ec3d8db383
 # ╠═502767df-89ca-46a0-8300-957780bd5640
 # ╠═178b80c2-4239-4866-b115-82de5e0a3f60
 # ╠═339bdb5e-ff60-43b2-926c-92d92cc3831e
