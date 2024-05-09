@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.38
+# v0.19.41
 
 using Markdown
 using InteractiveUtils
@@ -142,61 +142,6 @@ end
 # ╔═╡ 991ce1cf-ea03-474f-a1a9-82fabcc572fd
 heatmap(trend_arrays["LST_Night"][:,:,1])
 # heatmap(yearly_aves[:,:,15,1])
-
-# ╔═╡ bbb3ee9a-4bcd-421d-9f3c-1812f1667328
-# Get mean of every mesh datum in specified area per month
-# function get_monthly_vals(filepath, areas, sample_missing)
-# 	# Create appropriately sized Array and read data into it
-# 	data = Array{Float32}(undef, (1440, 720, 12))
-# 	read!(filepath, data)
-# 	# Select only Asia data
-# 	asia = view(data, 961:1440, 41:400, :)
-# 	# Restrict data to either Missing or Float32
-# 	asia = convert(Array{Union{Missing, Float32}}, asia)
-# 	# Replace -9999 values with missing
-# 	replace!(asia, -9999 => missing)	
-# 	# Apply Weights
-# 	file_missing = findall(x -> ismissing(x), asia[:,:,1])
-# 	result = areas .* asia
-# 	areas[file_missing] .= missing
-# 	total_area = sum(skipmissing(areas[regions[region_name]]))
-# 	monthly_vals = Vector{Float32}()
-
-# 	# For each month in result
-# 	for i = 1:12
-# 		# Sum all results by month to find monthly average
-# 		append!(monthly_vals, sum(skipmissing(result[:,:,i][regions[region_name]]))/total_area)
-# 	end
-# 	return monthly_vals
-# end
-
-# ╔═╡ 0903d2e8-b084-4c7c-9c5a-3406d86b4f2f
-# function get_valid_areas()
-# 	areas = Array{Float32}(undef, (480, 360))
-# 	read!(areas_file, areas)
-# 	areas = convert(Array{Union{Missing, Float32}}, areas)
-# 	replace!(areas, -9999.0 => missing)
-# 	return areas
-# end
-
-# ╔═╡ c3ff0e74-21f8-11ee-0595-15f127cac0ec
-# Global Variables
-# begin
-	# areas_file = "./AsiaMIP_qdeg_area.flt"
-	# mask_file = "./AsiaMIP_qdeg_gosat2.byt"
-	# sample_file = "./modis_data/MOD11A2.061/MONTH/MOD11A2.061.LST_Day.GLOBAL.30km.2021.degC.mon.bsq.flt"
-	# xticks = years[1:end]
-	# versions = ["005", "006", "061"]
-	# mod11a2 = ["LST_Day", "LST_Night"]
-	# mod13a2 = ["EVI", "NDVI"]
-	# mod15a2 = ["Fpar", "Lai"]
-	# datasets = ["LST_Day", "LST_Night", "EVI", "NDVI", "Fpar", "Lai"]
-	# products = Dict(
-	# 	"MOD11A2" => mod11a2,
-	# 	"MOD13A2" => mod13a2,
-	# 	"MOD15A2H" => mod15a2,
-	# )
-# end
 
 # ╔═╡ 6bb1c85b-bd07-4d6a-967e-d89b80d64626
 html"""<style>
@@ -2178,9 +2123,6 @@ version = "3.5.0+0"
 # ╠═b178b88a-a67f-48d5-9bca-d31521a1b68d
 # ╠═31a76310-331d-4dd8-9620-77b20a731e99
 # ╠═2fca9a4e-65c6-4d5a-bb4f-08d523d9a517
-# ╠═bbb3ee9a-4bcd-421d-9f3c-1812f1667328
-# ╠═0903d2e8-b084-4c7c-9c5a-3406d86b4f2f
-# ╠═c3ff0e74-21f8-11ee-0595-15f127cac0ec
 # ╠═b7cede9c-9ccb-4e6e-9e97-d85f1d4c9907
 # ╠═6bb1c85b-bd07-4d6a-967e-d89b80d64626
 # ╟─00000000-0000-0000-0000-000000000001

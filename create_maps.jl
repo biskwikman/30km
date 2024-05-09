@@ -31,7 +31,15 @@ begin
 		f = jldopen("./Annual_Trend_Data_2.jld2")
 		if dataset == "lst"
 			lst_day = f["lst_day"]
+			replace!(lst_day, -9999.0 => missing)
 			lst_night = f["lst_night"]
+			replace!(lst_night, -9999.0 => missing)
+			println(size(lst_day))
+			lst = Array{Union{Missing, Float32}, 3}(undef, 480, 360, 3)
+			lst[:,:,1] = lst_day[:,:,1] .+ ((lst_night[:,:,1] .- lst_day[:,:,1]) ./ 2)
+			lst[:,:,2] = lst_day[:,:,2] .+ ((lst_night[:,:,2] .- lst_day[:,:,2]) ./ 2)
+			lst[:,:,3] = lst_day[:,:,3] .+ ((lst_night[:,:,3] .- lst_day[:,:,3]) ./ 2)
+			return lst
 		else
 			trend_array = f[dataset]
 			trend_array = convert(Array{Union{Missing, Float32}}, trend_array)

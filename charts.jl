@@ -51,6 +51,9 @@ begin
 	linestyle = Linestyle([0.5, 1.0, 1.8, 3.0])
 end
 
+# ╔═╡ aeee67b6-e464-48a0-b41d-21b20949f6f8
+
+
 # ╔═╡ 178b80c2-4239-4866-b115-82de5e0a3f60
 function get_sample_data(product, unit)
 	sample_filepath = @sprintf("./modis_data/%s.005/MONTH", product[1])
@@ -83,6 +86,11 @@ begin
 	)
 
 	chart_data = Dict(
+		"LST" => Dict{String, Vector{Float64}}(
+			"005" => [],
+			"006" => [],
+			"061" => [],
+		), 
 		"LST_Day" => Dict{String, Vector{Float64}}(
 			"005" => [],
 			"006" => [],
@@ -228,14 +236,19 @@ colormap = Makie.wong_colors()
 begin
 	TheilSenRegressor = @load TheilSenRegressor pkg=MLJScikitLearnInterface
 	ts_regr = TheilSenRegressor()
-	chart_order_pres = ["LST_Day", "NDVI"]
-	f_pres = Figure(backgroundcolor = RGBf(0.90, 0.90, 0.90), resolution = (1600, 1600))
+	chart_order_pres = ["LST", "NDVI"]
+	f_pres = Figure(resolution = (1600, 1600))
 	ga_pres = f_pres[1, 1] = GridLayout()
 	gb_pres = f_pres[2, 1] = GridLayout()
 	gl_pres = f_pres[0, 1] = GridLayout()
 	grids_pres = [ga_pres, gb_pres]
 	Label(gl_pres[1,1], region_name, fontsize = regionnamefontsize, tellwidth=false)
 	for (i, dataset) in enumerate(chart_order_pres)
+		# Calculate daily LST
+		chart_data["LST"]["005"] = chart_data["LST_Day"]["005"] .+ ((chart_data["LST_Night"]["005"] .- chart_data["LST_Day"]["005"]) ./2)
+		chart_data["LST"]["006"] = chart_data["LST_Day"]["006"] .+ ((chart_data["LST_Night"]["006"] .- chart_data["LST_Day"]["006"]) ./2)
+		chart_data["LST"]["061"] = chart_data["LST_Day"]["061"] .+ ((chart_data["LST_Night"]["061"] .- chart_data["LST_Day"]["061"]) ./2)
+		
 		i == length(chart_order_pres) ? xlabel = L"Year" : xlabel = ""
 		mean005 = mean(chart_data[dataset]["005"][1:6])
 		mean006 = mean(chart_data[dataset]["006"][1:6])
@@ -2416,6 +2429,7 @@ version = "3.5.0+0"
 # ╠═3ffa5b58-f446-46b4-b5ae-3277d0d089e7
 # ╠═4d9e14a8-5be8-4095-b7bc-aa648a6d0d96
 # ╠═7cb603db-f12d-4022-96ba-a0ec3d8db383
+# ╠═aeee67b6-e464-48a0-b41d-21b20949f6f8
 # ╠═502767df-89ca-46a0-8300-957780bd5640
 # ╠═178b80c2-4239-4866-b115-82de5e0a3f60
 # ╠═339bdb5e-ff60-43b2-926c-92d92cc3831e
