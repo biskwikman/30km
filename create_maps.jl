@@ -91,7 +91,7 @@ begin
 		colorbarlabelsize=45
 		titlesize=45
 		colspacing=Relative(-0.07)
-		rowspacing=Relative(-0.005)
+		rowspacing=Relative(-0.1)
 	
 		ax1 = GeoAxis(fig[1,1], title="v05: 2000-2015",
 			dest = "+proj=longlat",
@@ -103,7 +103,7 @@ begin
 			yticklabelsvisible=false,
 			xticksvisible=false,
 			yticksvisible=false,
-			limits=((60, 180), (10, 80)),
+			limits=((60, 180), (-10, 80)),
 			titlesize=titlesize,
 			# aspect=DataAspect(),
 			xgridvisible=false,
@@ -120,7 +120,7 @@ begin
 			xticksvisible=false,
 			yticksvisible=false,
 			titlesize=titlesize,
-			limits=((60, 180), (10, 80)),
+			limits=((60, 180), (-10, 80)),
 			# aspect=DataAspect(),
 			xgridvisible=false,
 			ygridvisible=false,
@@ -137,7 +137,7 @@ begin
 			xticksvisible=false,
 			yticksvisible=false,
 			titlesize=titlesize,
-			limits=((60, 180), (10, 80)),
+			limits=((60, 180), (-10, 80)),
 			# aspect=DataAspect(),
 			xgridvisible=false,
 			ygridvisible=false,
@@ -150,6 +150,7 @@ begin
 			colormap=colorgradient,
 		)
 		lines!(ax1, GeoMakie.coastlines(), color=:gray)
+		# Box(fig[1, 1], color = (:red, 0.2), strokewidth = 0)
 		hidedecorations!(ax1)
 		
 		hm2 = heatmap!(ax2, 60..180, -10..80, trend_array[:,:,2], 
@@ -157,6 +158,7 @@ begin
 			colormap=colorgradient,
 		)
 		lines!(ax2, GeoMakie.coastlines(), color=:gray)
+		# Box(fig[2, 1], color = (:red, 0.2), strokewidth = 0)
 
 		hidedecorations!(ax2)
 		
@@ -183,7 +185,7 @@ begin
 		
 		Label(fig[0,:], replace(uppercase(dataset), "_"=>" ", "DAY"=>"Day", "NIGHT"=>"Night") * " Interannual Trend", fontsize=50)
 		# colgap!(fig.layout, 1, colspacing)
-		# rowgap!(fig.layout, 1, rowspacing)
+		rowgap!(fig.layout, 2, rowspacing)
 		return fig
 	end
 	create_maps(trend_array)

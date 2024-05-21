@@ -21,10 +21,16 @@ end
 # ╔═╡ 0686d932-bd34-4e21-873f-2fbdca2c0c6a
 # count(i -> i == -9998.0, skipmissing(trend_array))
 
+# ╔═╡ 23e5668f-47e7-43ce-a439-7d58871c1f2f
+length(2000:2015)
+
+# ╔═╡ 62dade53-c8ab-4f31-b8c5-83ca3b88ba28
+years = 2000:2015
+
 # ╔═╡ cba30637-41d6-4722-b437-096bbf1e6145
 begin
-	function create_trend_array(yearly_aves::AbstractArray, ts_regr)
-		years = 2000:2020
+	function create_trend_array(yearly_aves::AbstractArray, ts_regr, years::UnitRange)
+		# years = 2000:2015
 
 		df = DataFrame(years = convert.(Float32, years))
 		trend_array = Array{Union{Missing, Float32}}(undef, (480, 360, 3))
@@ -37,9 +43,9 @@ begin
 				continue
 			# elseif product == "MOD15A2H" && any(x -> x >= 249.0, a)
 			# 	trend_array[i] = -9998
-			elseif count(!ismissing, a) == 16 && count(ismissing, a[17:21]) == 5 
-				a = convert(Vector{Float32}, collect(skipmissing(a)))
-				mach = machine(ts_regr, df[1:16, [:years]], a)
+			# elseif count(!ismissing, a) == 16 && count(ismissing, a[17:21]) == 5 
+			# 	a = convert(Vector{Float32}, collect(skipmissing(a)))
+			# 	mach = machine(ts_regr, df[1:16, [:years]], a)
 			elseif ismissing(sum(a))
 				trend_array[i] = missing
 			else
@@ -60,15 +66,15 @@ begin
 	# product = "MOD15A2H"
 	# dataset = "Lai"
 
-	function create_all_versions(product::String, dataset::String)
+	function create_all_versions(product::String, dataset::String, years::UnitRange)
 		product == "MOD11A2" ? unit = "degC" : unit = "NA"
 		versions = ["005", "006", "061"]
-		years = 2000:2020
+		# years = 2000:2020
 		
 		# Need to extend this array for years
-		all_versions = Array{Union{Missing, Float32}}(undef, (480, 360, 12, 21, 3))
+		all_versions = Array{Union{Missing, Float32}}(undef, (480, 360, 12, length(years), 3))
 		for (iv, version) in enumerate(versions)
-			all_months = Array{Union{Missing, Float32}}(undef, (480, 360, 12, 21))
+			all_months = Array{Union{Missing, Float32}}(undef, (480, 360, 12, length(years)))
 			for (i, year) in enumerate(years)
 				if year in 2016:2020 && version == "005"
 					all_months[:,:,:,i] .= missing
@@ -115,9 +121,9 @@ begin
 
 	trend_arrays = Dict()
 	for (product, dataset) in prod_dataset
-		all_versions = create_all_versions(product, dataset)
+		all_versions = create_all_versions(product, dataset, years)
 		yearly_aves = create_yearly_averages(all_versions)
-		trend_array = create_trend_array(yearly_aves, ts_regr)
+		trend_array = create_trend_array(yearly_aves, ts_regr, years)
 		trend_arrays[dataset] = trend_array
 	end
 end
@@ -129,7 +135,7 @@ begin
 	using JLD2
 	# replace!(trend_array, missing => -9999.0)
 	# out_array = convert(Array{Float32}, trend_array)
-	jldsave("./Annual_Trend_Data_2.jld2"; 
+	jldsave("./annual_spatial_trend_arrays_2000_2015.jld2"; 
 		lai = trend_arrays["Lai"], 
 		fpar = trend_arrays["Fpar"], 
 		evi = trend_arrays["EVI"],
@@ -180,7 +186,7 @@ PythonCall = "~0.9.13"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.10.0"
+julia_version = "1.10.3"
 manifest_format = "2.0"
 project_hash = "046168afb4541d97ae1ae635088032a4636521e1"
 
@@ -437,7 +443,7 @@ weakdeps = ["Dates", "LinearAlgebra"]
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "1.0.5+1"
+version = "1.1.1+0"
 
 [[deps.ComputationalResources]]
 git-tree-sha1 = "52cb3ec90e8a8bea0e62e275ba577ad0f74821f7"
@@ -1343,7 +1349,7 @@ version = "1.3.5+1"
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
-version = "0.3.23+2"
+version = "0.3.23+4"
 
 [[deps.OpenEXR]]
 deps = ["Colors", "FileIO", "OpenEXR_jll"]
@@ -2119,6 +2125,8 @@ version = "3.5.0+0"
 # ╠═670288a6-a497-4c01-ab47-da2d92804e53
 # ╠═991ce1cf-ea03-474f-a1a9-82fabcc572fd
 # ╠═0686d932-bd34-4e21-873f-2fbdca2c0c6a
+# ╠═23e5668f-47e7-43ce-a439-7d58871c1f2f
+# ╠═62dade53-c8ab-4f31-b8c5-83ca3b88ba28
 # ╠═cba30637-41d6-4722-b437-096bbf1e6145
 # ╠═b178b88a-a67f-48d5-9bca-d31521a1b68d
 # ╠═31a76310-331d-4dd8-9620-77b20a731e99

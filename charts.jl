@@ -51,9 +51,6 @@ begin
 	linestyle = Linestyle([0.5, 1.0, 1.8, 3.0])
 end
 
-# ╔═╡ aeee67b6-e464-48a0-b41d-21b20949f6f8
-
-
 # ╔═╡ 178b80c2-4239-4866-b115-82de5e0a3f60
 function get_sample_data(product, unit)
 	sample_filepath = @sprintf("./modis_data/%s.005/MONTH", product[1])
@@ -2429,7 +2426,6 @@ version = "3.5.0+0"
 # ╠═3ffa5b58-f446-46b4-b5ae-3277d0d089e7
 # ╠═4d9e14a8-5be8-4095-b7bc-aa648a6d0d96
 # ╠═7cb603db-f12d-4022-96ba-a0ec3d8db383
-# ╠═aeee67b6-e464-48a0-b41d-21b20949f6f8
 # ╠═502767df-89ca-46a0-8300-957780bd5640
 # ╠═178b80c2-4239-4866-b115-82de5e0a3f60
 # ╠═339bdb5e-ff60-43b2-926c-92d92cc3831e
