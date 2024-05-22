@@ -35,6 +35,9 @@ end
 # ╔═╡ 8999ecae-84f3-40a1-af18-edc897b3f855
 @bind region_name Select(["East Asia","Southeast Asia","South Asia","Siberia"])
 
+# ╔═╡ d6add66b-d312-45cf-bec3-b9f539f9174d
+@bind line_years Select([2000:2015, 2000:2020])
+
 # ╔═╡ 3ffa5b58-f446-46b4-b5ae-3277d0d089e7
 # save(@sprintf("./output/%s.png", region_name), f_pres)
 
@@ -103,7 +106,7 @@ begin
 		"Lai" => Dict{String, Float32}(), 
 	)
 	chart_data = Dict(
-		"LST" => Dict{String, Vector{Float32}}(
+		"LST" => Dict{String, Vector{Union{Missing, Float32}}}(
 			"005" => [],
 			"005_var" => [],
 			"006" => [],
@@ -126,7 +129,7 @@ begin
 			"006" => [],
 			"061" => [],
 		), 
-		"NDVI" => Dict{String, Vector{Float32}}(
+		"NDVI" => Dict{String, Vector{Union{Missing, Float32}}}(
 			"005" => [],
 			"005_var" => [],
 			"006" => [],
@@ -150,11 +153,10 @@ end
 # ╔═╡ 7cb603db-f12d-4022-96ba-a0ec3d8db383
 # Charts for presentation
 begin
-	year_o= Observable(0)
-	framerate = 5
-	timestamps = range(1, 6)
-	
-	chart_order_pres = ["LST", "NDVI"]
+	chart_order_pres = [
+		"LST", 
+		"NDVI",
+	]
 	f_pres = Figure(resolution = (1600, 1600))
 	ga_pres = f_pres[1, 1] = GridLayout()
 	gb_pres = f_pres[2, 1] = GridLayout()
@@ -175,23 +177,21 @@ begin
 			ylabel = L"KgC\; m^2\; year^{-1}"
 		end
 		
-		for version in versions
+		for ver in versions
 			# Calculate daily LST
-			chart_data["LST"][version] = chart_data["LST_Day"][version] .+ ((chart_data["LST_Night"][version] .- chart_data["LST_Day"][version]) ./2)
+			chart_data["LST"][ver] = chart_data["LST_Day"][ver] .+ ((chart_data["LST_Night"][ver] .- chart_data["LST_Day"][ver]) ./2)
 
 			# Calculate means for 2000-2006
-			yearly_means[dataset][version] = mean(chart_data[dataset][version][1:6])
+			yearly_means[dataset][ver] = mean(chart_data[dataset][ver][1:6])
 
 			# Convenience
-			chart_data[dataset][version * "_var"] = chart_data[dataset][version] .- yearly_means[dataset][version]
+			chart_data[dataset][ver * "_var"] = chart_data[dataset][ver] .- yearly_means[dataset][ver]
 			
 			# Calculate chart limits
-			push!(limits, extrema(chart_data[dataset][version * "_var"])...)
+			push!(limits, extrema(chart_data[dataset][ver * "_var"])...)
 		end
-		
-		mean005 = mean(chart_data[dataset]["005"][1:6])
-		mean006 = mean(chart_data[dataset]["006"][1:6])
-		mean061 = mean(chart_data[dataset]["061"][1:6])
+
+		push!(chart_data[dataset]["005_var"], missing, missing, missing, missing, missing)
 		
 		ylimmax = ((extrema(limits)[2] - extrema(limits)[1]) * 0.1) + extrema(limits)[2]
 		ylimmin = extrema(limits)[1] - ((extrema(limits)[2] - extrema(limits)[1]) * 0.1)
@@ -205,40 +205,32 @@ begin
 		# Gray box denotes average of those years
 		poly!(ax, Point2f[(0, -100), (2005.0, -100), (2005.0, 100), (0, 100)], color=RGBA(0.1, 0.1, 0.1, 0.1))
 
-		xs = @lift($(2000:2015+$year_o))
-		ys = @lift($(chart_data[dataset]["006_var"][1:16+$year_o]))
-		println(length(chart_data[dataset]["006_var"][1:16]))
-		println(length(2000:2015))
-		
-		# framerate = 30
-		# timestamp = range(2015, 2020)
-
-		# lines!(ax, range(2000,2015), chart_data[dataset]["005_var"], label="v05μ", linewidth=linewidth, color=(colormap[1], 0.5))
-		# lines!(ax, years, chart_data[dataset]["006_var"], label="v06μ", linewidth=linewidth, color=(colormap[2], 0.5))
-		lines!(ax, xs, ys, label="v06μ", linewidth=linewidth, color=(colormap[2], 0.5))
-		# lines!(ax, years, chart_data[dataset]["061_var"], label="v61μ", linewidth=linewidth, color=(colormap[3], 0.5))
-
-		# record(f_pres, "test_animation.mkv", timestamps; 
-		# 		framerate=framerate) do t
-		# 	year_o[] = t
+		for ver in versions
+			lines!(ax, line_years, chart_data[dataset][ver * "_var"][1:length(line_years)], label="v" * ver[2:3] * "μ", linewidth=linewidth, alpha=0.5)
+		end
 		
 		df = DataFrame(
 			years = convert.(Float32, years),
-			v06 = chart_data[dataset]["006"] .- mean006,
-			v61 = chart_data[dataset]["061"] .- mean061,
+			v05 = chart_data[dataset]["005_var"],
+			v06 = chart_data[dataset]["006_var"],
+			v61 = chart_data[dataset]["061_var"],
 		)
 		
-		df05 = DataFrame(
-			years = convert.(Float32, range(2000, 2015)),
-			v05 = chart_data[dataset]["005"] .- mean005
-		)
+		# df05 = DataFrame(
+		# 	years = convert.(Float32, range(2000, 2015)),
+		# 	v05 = chart_data[dataset]["005"] .- mean005
+		# )
 
-		ts_machine_05 = machine(ts_regr, df05[:, [:years]], df05.v05)
+		# ts_machine_05 = machine(ts_regr, df05[:, [:years]], df05.v05)
+		# fit!(ts_machine_05, verbosity=0)
+		# regr05 = predict_mode(ts_machine_05)
+		# while length(regr05) < 21
+		# 	append!(regr05, last(regr05) + regr05[2] - regr05[1])
+		# end
+
+		ts_machine_05 = machine(ts_regr, dropmissing(df[:, [:years, :v05]])[:, [:years]], dropmissing(df[:, [:years, :v05]])[:, [:v05]])
 		fit!(ts_machine_05, verbosity=0)
 		regr05 = predict_mode(ts_machine_05)
-		while length(regr05) < 21
-			append!(regr05, last(regr05) + regr05[2] - regr05[1])
-		end
 		
 		ts_machine_06 = machine(ts_regr, df[:, [:years]], df.v06)
 		fit!(ts_machine_06, verbosity=0)
@@ -248,11 +240,11 @@ begin
 		fit!(ts_machine_61, verbosity=0)
 		regr61 = predict_mode(ts_machine_61)
 
-		lines!(ax, df.years, round.(regr05, digits=5), label="v05 lm", linewidth=reglinewidth, linestyle=linestyle, color=colormap[1])
+		# lines!(ax, df.years, round.(regr05, digits=5), label="v05 lm", linewidth=reglinewidth, linestyle=linestyle, color=colormap[1])
 		lines!(ax, df.years, round.(regr06, digits=5), label="v06 lm", linewidth=reglinewidth, linestyle=linestyle, color=colormap[2])
 		lines!(ax, df.years, round.(regr61, digits=5), label="v61 lm", linewidth=reglinewidth, linestyle=linestyle, color=colormap[3])
-		text!(ax, df.years[begin], round.(regr05, digits=5)[begin], text="V5", color=colormap[1], fontsize=versionlabelsize,
-			align=(:center,:top))
+		# text!(ax, df.years[begin], round.(regr05, digits=5)[begin], text="V5", color=colormap[1], fontsize=versionlabelsize,
+		# 	align=(:center,:top))
 		text!(ax, df.years[11], round.(regr06, digits=5)[11], text="V6", color=colormap[2], fontsize=versionlabelsize, align=(:center,:bottom))
 		text!(ax, df.years[end], round.(regr61, digits=5)[end], text="V6.1", color=colormap[3], fontsize=versionlabelsize, align=(:right,:top))
 
@@ -261,9 +253,9 @@ begin
 		col = ceil(i / 3)
 		col = convert(Int, col)
 
-		v05_p = string(round(mk_original_test(df05.v05).p, digits=3))
-		v05_τ = string(round(mk_original_test(df05.v05).τ, digits=2))
-		v05_test = LineElement(linewidth=reglinewidth, linestyle=:dash, color=(colormap[1]))
+		# v05_p = string(round(mk_original_test(df05.v05).p, digits=3))
+		# v05_τ = string(round(mk_original_test(df05.v05).τ, digits=2))
+		# v05_test = LineElement(linewidth=reglinewidth, linestyle=:dash, color=(colormap[1]))
 		v06_p = string(round(mk_original_test(df.v06).p, digits=3))
 		v06_τ = string(round(mk_original_test(df.v06).τ, digits=2))
 		v06_test = LineElement(linewidth=reglinewidth, linestyle=:dash, color=(colormap[2]))
@@ -271,25 +263,25 @@ begin
 		v61_τ = string(round(mk_original_test(df.v61).τ, digits=2))
 		v61_test = LineElement(linewidth=reglinewidth, linestyle=:dash, color=(colormap[3]))
 
-		Legend(f_pres[i,2][1,1],
-			[v05_test, v06_test, v61_test],
-			[v05_p, v06_p, v61_p],
-			"P (MK)",
-			labelsize=legendlabelsize,
-			titlesize=legendtitlesize,
-			width=legendwidth,
-			valign=:bottom,
-		)
+		# Legend(f_pres[i,2][1,1],
+		# 	[v05_test, v06_test, v61_test],
+		# 	[v05_p, v06_p, v61_p],
+		# 	"P (MK)",
+		# 	labelsize=legendlabelsize,
+		# 	titlesize=legendtitlesize,
+		# 	width=legendwidth,
+		# 	valign=:bottom,
+		# )
 
-		Legend(f_pres[i,2][2,1],
-			[v05_test, v06_test, v61_test],
-			[v05_τ, v06_τ, v61_τ],
-			"τ (MK)",
-			labelsize=legendlabelsize,
-			titlesize=legendtitlesize,
-			width=legendwidth,
-			valign=:top,
-		)
+		# Legend(f_pres[i,2][2,1],
+		# 	[v05_test, v06_test, v61_test],
+		# 	[v05_τ, v06_τ, v61_τ],
+		# 	"τ (MK)",
+		# 	labelsize=legendlabelsize,
+		# 	titlesize=legendtitlesize,
+		# 	width=legendwidth,
+		# 	valign=:top,
+		# )
 
 		valign=:top
 		halign=:left
@@ -302,11 +294,11 @@ begin
 			# Legend(f_pres[1,1], ax, tellwidth=false, halign=halign, valign=valign, margin=(5, 5, 5, 5), labelsize=30)
 		end
 	end
-	# f_pres
-	record(f_pres, "test_animation.mkv", timestamps; 
-				framerate=framerate) do t
-			year_o[] = t
-	end
+	f_pres
+	# record(f_pres, "test_animation.mkv", timestamps; 
+	# 			framerate=framerate) do t
+	# 		year_o[] = t
+	# end
 end
 
 # ╔═╡ 819a06a9-0561-495b-8fe1-c5901082a31c
@@ -383,7 +375,6 @@ function create_averages(product, dataset, unit, areas, sample_missing)
 			filepath = @sprintf("./modis_data/%s.%s/MONTH/%s", product, k, filename)
 
 			if k == "005" && i in string.(collect(2016:2020))
-				println(k, i)
 				continue
 			end
 			push!(v, get_monthly_vals(filepath, areas, sample_missing))
@@ -417,8 +408,8 @@ end
 html"""<style>
 main {
     max-width: 70%;
-    margin-left: 3%;
-    margin-right: 3% !important;
+    # margin-left: 3%;
+    # margin-right: 3% !important;
 }
 """
 
@@ -2474,6 +2465,7 @@ version = "3.5.0+0"
 
 # ╔═╡ Cell order:
 # ╠═8999ecae-84f3-40a1-af18-edc897b3f855
+# ╠═d6add66b-d312-45cf-bec3-b9f539f9174d
 # ╠═3ffa5b58-f446-46b4-b5ae-3277d0d089e7
 # ╠═4d9e14a8-5be8-4095-b7bc-aa648a6d0d96
 # ╠═e0fdb2c0-4cdd-4d93-8355-8ac83bd6a736
