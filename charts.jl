@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.41
+# v0.19.42
 
 using Markdown
 using InteractiveUtils
@@ -35,6 +35,9 @@ end
 # ╔═╡ 8999ecae-84f3-40a1-af18-edc897b3f855
 @bind region_name Select(["East Asia","Southeast Asia","South Asia","Siberia"])
 
+# ╔═╡ 3ffa5b58-f446-46b4-b5ae-3277d0d089e7
+# save(@sprintf("./output/%s.png", region_name), f_pres)
+
 # ╔═╡ 4d9e14a8-5be8-4095-b7bc-aa648a6d0d96
 begin
 	legendlabelsize = 40
@@ -49,7 +52,14 @@ begin
 	yearformat = xs -> ["'$(SubString(string(x), 3,4))" for x in xs]
 	xticks = 2000:2:2020
 	linestyle = Linestyle([0.5, 1.0, 1.8, 3.0])
+	colormap = Makie.wong_colors()
+
+	TheilSenRegressor = @load TheilSenRegressor pkg=MLJScikitLearnInterface
+	ts_regr = TheilSenRegressor()
 end
+
+# ╔═╡ e0fdb2c0-4cdd-4d93-8355-8ac83bd6a736
+range(1,6, step=1)
 
 # ╔═╡ 178b80c2-4239-4866-b115-82de5e0a3f60
 function get_sample_data(product, unit)
@@ -82,43 +92,221 @@ begin
 		"MOD15A2H" => mod15a2,
 	)
 
+	versions = ["005", "006", "061"]
+	yearly_means = Dict(
+		"LST" => Dict{String, Float32}(), 
+		"LST_Day" => Dict{String, Float32}(), 
+		"LST_Night" => Dict{String, Float32}(), 
+		"EVI" => Dict{String, Float32}(), 
+		"NDVI" => Dict{String, Float32}(), 
+		"Fpar" => Dict{String, Float32}(), 
+		"Lai" => Dict{String, Float32}(), 
+	)
 	chart_data = Dict(
-		"LST" => Dict{String, Vector{Float64}}(
+		"LST" => Dict{String, Vector{Float32}}(
+			"005" => [],
+			"005_var" => [],
+			"006" => [],
+			"006_var" => [],
+			"061" => [],
+			"061_var" => [],
+		), 
+		"LST_Day" => Dict{String, Vector{Float32}}(
 			"005" => [],
 			"006" => [],
 			"061" => [],
 		), 
-		"LST_Day" => Dict{String, Vector{Float64}}(
+		"LST_Night" => Dict{String, Vector{Float32}}(
 			"005" => [],
 			"006" => [],
 			"061" => [],
 		), 
-		"LST_Night" => Dict{String, Vector{Float64}}(
+		"EVI" => Dict{String, Vector{Float32}}(
 			"005" => [],
 			"006" => [],
 			"061" => [],
 		), 
-		"EVI" => Dict{String, Vector{Float64}}(
+		"NDVI" => Dict{String, Vector{Float32}}(
+			"005" => [],
+			"005_var" => [],
+			"006" => [],
+			"006_var" => [],
+			"061" => [],
+			"061_var" => [],
+		), 
+		"Fpar" => Dict{String, Vector{Float32}}(
 			"005" => [],
 			"006" => [],
 			"061" => [],
 		), 
-		"NDVI" => Dict{String, Vector{Float64}}(
-			"005" => [],
-			"006" => [],
-			"061" => [],
-		), 
-		"Fpar" => Dict{String, Vector{Float64}}(
-			"005" => [],
-			"006" => [],
-			"061" => [],
-		), 
-		"Lai" => Dict{String, Vector{Float64}}(
+		"Lai" => Dict{String, Vector{Float32}}(
 			"005" => [],
 			"006" => [],
 			"061" => [],
 		), 
 	)
+end
+
+# ╔═╡ 7cb603db-f12d-4022-96ba-a0ec3d8db383
+# Charts for presentation
+begin
+	year_o= Observable(0)
+	framerate = 5
+	timestamps = range(1, 6)
+	
+	chart_order_pres = ["LST", "NDVI"]
+	f_pres = Figure(resolution = (1600, 1600))
+	ga_pres = f_pres[1, 1] = GridLayout()
+	gb_pres = f_pres[2, 1] = GridLayout()
+	gl_pres = f_pres[0, 1] = GridLayout()
+	grids_pres = [ga_pres, gb_pres]
+	Label(gl_pres[1,1], region_name, fontsize = regionnamefontsize, tellwidth=false)
+	for (i, dataset) in enumerate(chart_order_pres)
+		limits = []
+		
+		i == length(chart_order_pres) ? xlabel = L"Year" : xlabel = ""
+		
+		chart_order_pres[i] in ["LST_Day"] ? title = "Day Land Surface Temp: Variation from 2000-2005 Mean" : title = uppercase(dataset) * ": Variation from 2000-2005 Mean"
+		
+		ylabel = ""
+		if dataset == "LST"
+			ylabel = L"°C"
+		elseif dataset == "NDVI"
+			ylabel = L"KgC\; m^2\; year^{-1}"
+		end
+		
+		for version in versions
+			# Calculate daily LST
+			chart_data["LST"][version] = chart_data["LST_Day"][version] .+ ((chart_data["LST_Night"][version] .- chart_data["LST_Day"][version]) ./2)
+
+			# Calculate means for 2000-2006
+			yearly_means[dataset][version] = mean(chart_data[dataset][version][1:6])
+
+			# Convenience
+			chart_data[dataset][version * "_var"] = chart_data[dataset][version] .- yearly_means[dataset][version]
+			
+			# Calculate chart limits
+			push!(limits, extrema(chart_data[dataset][version * "_var"])...)
+		end
+		
+		mean005 = mean(chart_data[dataset]["005"][1:6])
+		mean006 = mean(chart_data[dataset]["006"][1:6])
+		mean061 = mean(chart_data[dataset]["061"][1:6])
+		
+		ylimmax = ((extrema(limits)[2] - extrema(limits)[1]) * 0.1) + extrema(limits)[2]
+		ylimmin = extrema(limits)[1] - ((extrema(limits)[2] - extrema(limits)[1]) * 0.1)
+
+		ax = Axis(
+			grids_pres[i][1,1], title=title, xlabel=xlabel, ylabel=ylabel, xticks=xticks, 
+			xticklabelsize=ticklabelsize, yticklabelsize=ticklabelsize, xtickformat=yearformat, xlabelsize=ticklabelsize, ylabelsize=ticklabelsize, titlesize=axistitlesize, 
+			limits=(minimum(years)-1, maximum(years)+1, ylimmin, ylimmax),
+		)
+
+		# Gray box denotes average of those years
+		poly!(ax, Point2f[(0, -100), (2005.0, -100), (2005.0, 100), (0, 100)], color=RGBA(0.1, 0.1, 0.1, 0.1))
+
+		xs = @lift($(2000:2015+$year_o))
+		ys = @lift($(chart_data[dataset]["006_var"][1:16+$year_o]))
+		println(length(chart_data[dataset]["006_var"][1:16]))
+		println(length(2000:2015))
+		
+		# framerate = 30
+		# timestamp = range(2015, 2020)
+
+		# lines!(ax, range(2000,2015), chart_data[dataset]["005_var"], label="v05μ", linewidth=linewidth, color=(colormap[1], 0.5))
+		# lines!(ax, years, chart_data[dataset]["006_var"], label="v06μ", linewidth=linewidth, color=(colormap[2], 0.5))
+		lines!(ax, xs, ys, label="v06μ", linewidth=linewidth, color=(colormap[2], 0.5))
+		# lines!(ax, years, chart_data[dataset]["061_var"], label="v61μ", linewidth=linewidth, color=(colormap[3], 0.5))
+
+		# record(f_pres, "test_animation.mkv", timestamps; 
+		# 		framerate=framerate) do t
+		# 	year_o[] = t
+		
+		df = DataFrame(
+			years = convert.(Float32, years),
+			v06 = chart_data[dataset]["006"] .- mean006,
+			v61 = chart_data[dataset]["061"] .- mean061,
+		)
+		
+		df05 = DataFrame(
+			years = convert.(Float32, range(2000, 2015)),
+			v05 = chart_data[dataset]["005"] .- mean005
+		)
+
+		ts_machine_05 = machine(ts_regr, df05[:, [:years]], df05.v05)
+		fit!(ts_machine_05, verbosity=0)
+		regr05 = predict_mode(ts_machine_05)
+		while length(regr05) < 21
+			append!(regr05, last(regr05) + regr05[2] - regr05[1])
+		end
+		
+		ts_machine_06 = machine(ts_regr, df[:, [:years]], df.v06)
+		fit!(ts_machine_06, verbosity=0)
+		regr06 = predict_mode(ts_machine_06)
+	
+		ts_machine_61 = machine(ts_regr, df[:, [:years]], df.v61)
+		fit!(ts_machine_61, verbosity=0)
+		regr61 = predict_mode(ts_machine_61)
+
+		lines!(ax, df.years, round.(regr05, digits=5), label="v05 lm", linewidth=reglinewidth, linestyle=linestyle, color=colormap[1])
+		lines!(ax, df.years, round.(regr06, digits=5), label="v06 lm", linewidth=reglinewidth, linestyle=linestyle, color=colormap[2])
+		lines!(ax, df.years, round.(regr61, digits=5), label="v61 lm", linewidth=reglinewidth, linestyle=linestyle, color=colormap[3])
+		text!(ax, df.years[begin], round.(regr05, digits=5)[begin], text="V5", color=colormap[1], fontsize=versionlabelsize,
+			align=(:center,:top))
+		text!(ax, df.years[11], round.(regr06, digits=5)[11], text="V6", color=colormap[2], fontsize=versionlabelsize, align=(:center,:bottom))
+		text!(ax, df.years[end], round.(regr61, digits=5)[end], text="V6.1", color=colormap[3], fontsize=versionlabelsize, align=(:right,:top))
+
+		row = ceil(i / 2)
+		row = convert(Int, row)
+		col = ceil(i / 3)
+		col = convert(Int, col)
+
+		v05_p = string(round(mk_original_test(df05.v05).p, digits=3))
+		v05_τ = string(round(mk_original_test(df05.v05).τ, digits=2))
+		v05_test = LineElement(linewidth=reglinewidth, linestyle=:dash, color=(colormap[1]))
+		v06_p = string(round(mk_original_test(df.v06).p, digits=3))
+		v06_τ = string(round(mk_original_test(df.v06).τ, digits=2))
+		v06_test = LineElement(linewidth=reglinewidth, linestyle=:dash, color=(colormap[2]))
+		v61_p = string(round(mk_original_test(df.v61).p, digits=3))
+		v61_τ = string(round(mk_original_test(df.v61).τ, digits=2))
+		v61_test = LineElement(linewidth=reglinewidth, linestyle=:dash, color=(colormap[3]))
+
+		Legend(f_pres[i,2][1,1],
+			[v05_test, v06_test, v61_test],
+			[v05_p, v06_p, v61_p],
+			"P (MK)",
+			labelsize=legendlabelsize,
+			titlesize=legendtitlesize,
+			width=legendwidth,
+			valign=:bottom,
+		)
+
+		Legend(f_pres[i,2][2,1],
+			[v05_test, v06_test, v61_test],
+			[v05_τ, v06_τ, v61_τ],
+			"τ (MK)",
+			labelsize=legendlabelsize,
+			titlesize=legendtitlesize,
+			width=legendwidth,
+			valign=:top,
+		)
+
+		valign=:top
+		halign=:left
+
+		if i == length(chart_order_pres)
+			if region_name in ["East Asia", "South Asia"]
+				valign=:bottom
+			end
+			# Main legend, probably not needed anymore.
+			# Legend(f_pres[1,1], ax, tellwidth=false, halign=halign, valign=valign, margin=(5, 5, 5, 5), labelsize=30)
+		end
+	end
+	# f_pres
+	record(f_pres, "test_animation.mkv", timestamps; 
+				framerate=framerate) do t
+			year_o[] = t
+	end
 end
 
 # ╔═╡ 819a06a9-0561-495b-8fe1-c5901082a31c
@@ -225,143 +413,6 @@ begin
 	end
 end
 
-# ╔═╡ 4a744ca1-592d-4081-8d81-18d3488253db
-colormap = Makie.wong_colors()
-
-# ╔═╡ 7cb603db-f12d-4022-96ba-a0ec3d8db383
-# Charts for presentation
-begin
-	TheilSenRegressor = @load TheilSenRegressor pkg=MLJScikitLearnInterface
-	ts_regr = TheilSenRegressor()
-	chart_order_pres = ["LST", "NDVI"]
-	f_pres = Figure(resolution = (1600, 1600))
-	ga_pres = f_pres[1, 1] = GridLayout()
-	gb_pres = f_pres[2, 1] = GridLayout()
-	gl_pres = f_pres[0, 1] = GridLayout()
-	grids_pres = [ga_pres, gb_pres]
-	Label(gl_pres[1,1], region_name, fontsize = regionnamefontsize, tellwidth=false)
-	for (i, dataset) in enumerate(chart_order_pres)
-		# Calculate daily LST
-		chart_data["LST"]["005"] = chart_data["LST_Day"]["005"] .+ ((chart_data["LST_Night"]["005"] .- chart_data["LST_Day"]["005"]) ./2)
-		chart_data["LST"]["006"] = chart_data["LST_Day"]["006"] .+ ((chart_data["LST_Night"]["006"] .- chart_data["LST_Day"]["006"]) ./2)
-		chart_data["LST"]["061"] = chart_data["LST_Day"]["061"] .+ ((chart_data["LST_Night"]["061"] .- chart_data["LST_Day"]["061"]) ./2)
-		
-		i == length(chart_order_pres) ? xlabel = L"Year" : xlabel = ""
-		mean005 = mean(chart_data[dataset]["005"][1:6])
-		mean006 = mean(chart_data[dataset]["006"][1:6])
-		mean061 = mean(chart_data[dataset]["061"][1:6])
-
-		chart_order_pres[i] in ["LST_Day"] ? title = "Day Land Surface Temp: Variation from 2000-2005 Mean" : title = uppercase(dataset) * ": Variation from 2000-2005 Mean"
-		ylabel = ""
-		if dataset == "LST_Day"
-			ylabel = L"°C"
-		elseif dataset == "NDVI"
-			ylabel = L"KgC\; m^2\; year^{-1}"
-		end
-		
-		ylimmax = maximum([maximum(chart_data[dataset]["005"] .- mean005), maximum(chart_data[dataset]["006"] .- mean006), maximum(chart_data[dataset]["061"] .- mean061)])
-		ylimmin = minimum([minimum(chart_data[dataset]["005"] .- mean005), minimum(chart_data[dataset]["006"] .- mean006), minimum(chart_data[dataset]["061"] .- mean061)])
-		ylimmax = ((ylimmax - ylimmin) * 0.1) + ylimmax
-		ylimmin = ylimmin - ((ylimmax - ylimmin) * 0.1)
-
-		ax = Axis(
-			grids_pres[i][1,1], title=title, xlabel=xlabel, ylabel=ylabel, xticks=xticks, 
-			xticklabelsize=ticklabelsize, yticklabelsize=ticklabelsize, xtickformat=yearformat, xlabelsize=ticklabelsize, ylabelsize=ticklabelsize, titlesize=axistitlesize, 
-			limits=(minimum(years)-1, maximum(years)+1, ylimmin, ylimmax),
-		)
-
-		poly!(ax, Point2f[(0, -100), (2005.0, -100), (2005.0, 100), (0, 100)], color=RGBA(0.1, 0.1, 0.1, 0.1))
-
-		lines!(ax, range(2000,2015), chart_data[dataset]["005"] .- mean005, label="v05μ", linewidth=linewidth, color=(colormap[1], 0.5))
-		lines!(ax, years, chart_data[dataset]["006"] .- mean006, label="v06μ", linewidth=linewidth, color=(colormap[2], 0.5))
-		lines!(ax, years, chart_data[dataset]["061"] .- mean061, label="v61μ", linewidth=linewidth, color=(colormap[3], 0.5))
-
-		df = DataFrame(
-			years = convert.(Float32, years),
-			v06 = chart_data[dataset]["006"] .- mean006,
-			v61 = chart_data[dataset]["061"] .- mean061,
-		)
-		
-		df05 = DataFrame(
-			years = convert.(Float32, range(2000, 2015)),
-			v05 = chart_data[dataset]["005"] .- mean005
-		)
-
-		ts_machine_05 = machine(ts_regr, df05[:, [:years]], df05.v05)
-		fit!(ts_machine_05, verbosity=0)
-		regr05 = predict_mode(ts_machine_05)
-		while length(regr05) < 21
-			append!(regr05, last(regr05) + regr05[2] - regr05[1])
-		end
-		
-		ts_machine_06 = machine(ts_regr, df[:, [:years]], df.v06)
-		fit!(ts_machine_06, verbosity=0)
-		regr06 = predict_mode(ts_machine_06)
-	
-		ts_machine_61 = machine(ts_regr, df[:, [:years]], df.v61)
-		fit!(ts_machine_61, verbosity=0)
-		regr61 = predict_mode(ts_machine_61)
-
-		lines!(ax, df.years, round.(regr05, digits=5), label="v05 lm", linewidth=reglinewidth, linestyle=linestyle, color=colormap[1])
-		lines!(ax, df.years, round.(regr06, digits=5), label="v06 lm", linewidth=reglinewidth, linestyle=linestyle, color=colormap[2])
-		lines!(ax, df.years, round.(regr61, digits=5), label="v61 lm", linewidth=reglinewidth, linestyle=linestyle, color=colormap[3])
-		text!(ax, df.years[begin], round.(regr05, digits=5)[begin], text="V5", color=colormap[1], fontsize=versionlabelsize,
-			align=(:center,:top))
-		text!(ax, df.years[11], round.(regr06, digits=5)[11], text="V6", color=colormap[2], fontsize=versionlabelsize, align=(:center,:bottom))
-		text!(ax, df.years[end], round.(regr61, digits=5)[end], text="V6.1", color=colormap[3], fontsize=versionlabelsize, align=(:right,:top))
-
-		row = ceil(i / 2)
-		row = convert(Int, row)
-		col = ceil(i / 3)
-		col = convert(Int, col)
-
-		v05_p = string(round(mk_original_test(df05.v05).p, digits=3))
-		v05_τ = string(round(mk_original_test(df05.v05).τ, digits=2))
-		v05_test = LineElement(linewidth=reglinewidth, linestyle=:dash, color=(colormap[1]))
-		v06_p = string(round(mk_original_test(df.v06).p, digits=3))
-		v06_τ = string(round(mk_original_test(df.v06).τ, digits=2))
-		v06_test = LineElement(linewidth=reglinewidth, linestyle=:dash, color=(colormap[2]))
-		v61_p = string(round(mk_original_test(df.v61).p, digits=3))
-		v61_τ = string(round(mk_original_test(df.v61).τ, digits=2))
-		v61_test = LineElement(linewidth=reglinewidth, linestyle=:dash, color=(colormap[3]))
-
-		Legend(f_pres[i,2][1,1],
-			[v05_test, v06_test, v61_test],
-			[v05_p, v06_p, v61_p],
-			"P (MK)",
-			labelsize=legendlabelsize,
-			titlesize=legendtitlesize,
-			width=legendwidth,
-			valign=:bottom,
-		)
-
-		Legend(f_pres[i,2][2,1],
-			[v05_test, v06_test, v61_test],
-			[v05_τ, v06_τ, v61_τ],
-			"τ (MK)",
-			labelsize=legendlabelsize,
-			titlesize=legendtitlesize,
-			width=legendwidth,
-			valign=:top,
-		)
-
-		valign=:top
-		halign=:left
-
-		if i == length(chart_order_pres)
-			if region_name in ["East Asia", "South Asia"]
-				valign=:bottom
-			end
-			# Main legend, probably not needed anymore.
-			# Legend(f_pres[1,1], ax, tellwidth=false, halign=halign, valign=valign, margin=(5, 5, 5, 5), labelsize=30)
-		end
-	end
-	f_pres
-end
-
-# ╔═╡ 3ffa5b58-f446-46b4-b5ae-3277d0d089e7
-save(@sprintf("./output/%s.png", region_name), f_pres)
-
 # ╔═╡ 2b5ee6e5-2c7e-4391-9132-5eb0a3cdf02e
 html"""<style>
 main {
@@ -390,7 +441,7 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 UrlDownload = "856ac37a-3032-4c1c-9122-f86d88358c8b"
 
 [compat]
-CairoMakie = "~0.10.6"
+CairoMakie = "~0.10.12"
 ColorSchemes = "~3.21.0"
 DataFrames = "~1.6.0"
 HypothesisTests = "~0.11.0"
@@ -409,7 +460,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.3"
 manifest_format = "2.0"
-project_hash = "7e3b5f0969a13d385f5ada1681f9e7a685da1dd4"
+project_hash = "c30e858ca92c2e9f23ce43e35594b9683f29cc26"
 
 [[deps.ARFFFiles]]
 deps = ["CategoricalArrays", "Dates", "Parsers", "Tables"]
@@ -2425,6 +2476,7 @@ version = "3.5.0+0"
 # ╠═8999ecae-84f3-40a1-af18-edc897b3f855
 # ╠═3ffa5b58-f446-46b4-b5ae-3277d0d089e7
 # ╠═4d9e14a8-5be8-4095-b7bc-aa648a6d0d96
+# ╠═e0fdb2c0-4cdd-4d93-8355-8ac83bd6a736
 # ╠═7cb603db-f12d-4022-96ba-a0ec3d8db383
 # ╠═502767df-89ca-46a0-8300-957780bd5640
 # ╠═178b80c2-4239-4866-b115-82de5e0a3f60
@@ -2433,7 +2485,6 @@ version = "3.5.0+0"
 # ╠═819a06a9-0561-495b-8fe1-c5901082a31c
 # ╠═ef5817b9-22c9-49c7-9f85-61c28556680b
 # ╠═8fd6a047-499f-4ebe-88b7-7658fc13ab08
-# ╠═4a744ca1-592d-4081-8d81-18d3488253db
 # ╠═37249420-1167-11ee-10c5-bf8ef74e20cf
 # ╠═2b5ee6e5-2c7e-4391-9132-5eb0a3cdf02e
 # ╟─00000000-0000-0000-0000-000000000001
