@@ -16,7 +16,7 @@ end
 
 # ╔═╡ 3b024aef-2cb9-4b3a-a178-b85750341029
 begin
-	using Makie
+	# using Makie
 	using CairoMakie
 	using GeoMakie
 	using JLD2
@@ -68,13 +68,6 @@ begin
 	digits = 3
 	ticklabelsize=45
 
-	ticks=[
-		round(range_min, digits=digits, RoundUp),
-		round(range_min/2, digits=digits),
-		0,
-		round(range_max/2, digits=digits),
-		round(range_max, digits=digits, RoundDown),
-	]
 	if dataset == "lai"
 		colorrange=(-0.04, 0.04)
 	elseif dataset == "ndvi"
@@ -137,17 +130,18 @@ begin
 		println(range_min, " ", digits)
 		
 		Colorbar(
-			fig[2,2], hm,
+			fig[2,2][1,:], hm,
 			tellheight=false,
 			halign=:center, vertical=false,
 			ticklabelsize=ticklabelsize, labelsize=colorbarlabelsize, label=colormap_label,
-			# colormap=colormap,
 			ticks=ticks,
 			tickformat=tickformat,
-			# limits=limits,
 			size=50,
 			width=Relative(4/5)
 		)
+		# text_ax = Axis(fig[2,2][2,:])
+		# text!(text_ax, 0, 1, text=L"NDVI={NIR-RED}/{NIR+RED}")
+		Label(fig[2,2][2,:], text=L"NDVI=\frac{NIR-RED}{NIR+RED}", tellwidth=false, fontsize=45, height=0, padding=(0.0f0, 0.0f0, 130.0f0, 0.0f0))
 		
 		Label(fig[0,:], replace(uppercase(dataset), "_"=>" ", "DAY"=>"Day", "NIGHT"=>"Night") * " Interannual Trend", fontsize=50)
 		# colgap!(fig.layout, 1, colspacing)
@@ -179,7 +173,6 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 GeoMakie = "db073c08-6b98-4ee5-b6a4-5efafb3259c6"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
-Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
@@ -188,7 +181,6 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 CairoMakie = "~0.10.12"
 GeoMakie = "~0.5.1"
 JLD2 = "~0.4.32"
-Makie = "~0.19.12"
 PlutoUI = "~0.7.52"
 """
 
@@ -198,7 +190,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.3"
 manifest_format = "2.0"
-project_hash = "99b3a59ec3d30c49d0dab15eff6f21d630cecbf9"
+project_hash = "de06ffb472e2f1dbd73d08f83e866cb68389d20f"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
