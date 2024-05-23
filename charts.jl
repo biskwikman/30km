@@ -35,12 +35,6 @@ end
 # ╔═╡ 8999ecae-84f3-40a1-af18-edc897b3f855
 @bind region_name Select(["East Asia","Southeast Asia","South Asia","Siberia"])
 
-# ╔═╡ d6add66b-d312-45cf-bec3-b9f539f9174d
-@bind line_years Select([2000:2015, 2000:2020])
-
-# ╔═╡ 3ffa5b58-f446-46b4-b5ae-3277d0d089e7
-# save(@sprintf("./output/%s.png", region_name), f_pres)
-
 # ╔═╡ 4d9e14a8-5be8-4095-b7bc-aa648a6d0d96
 begin
 	legendlabelsize = 40
@@ -48,7 +42,7 @@ begin
 	legendwidth = 150
 	versionlabelsize = 75
 	regionnamefontsize = 70
-	axistitlesize = 45
+	axistitlesize = 55
 	ticklabelsize = 50
 	linewidth = 5
 	reglinewidth = 10
@@ -61,8 +55,8 @@ begin
 	ts_regr = TheilSenRegressor()
 end
 
-# ╔═╡ e0fdb2c0-4cdd-4d93-8355-8ac83bd6a736
-range(1,6, step=1)
+# ╔═╡ d6add66b-d312-45cf-bec3-b9f539f9174d
+@bind line_years Select([2000:2015, 2000:2020])
 
 # ╔═╡ 178b80c2-4239-4866-b115-82de5e0a3f60
 function get_sample_data(product, unit)
@@ -124,10 +118,13 @@ begin
 			"006" => [],
 			"061" => [],
 		), 
-		"EVI" => Dict{String, Vector{Float32}}(
+		"EVI" => Dict{String, Vector{Union{Missing, Float32}}}(
 			"005" => [],
+			"005_var" => [],
 			"006" => [],
+			"006_var" => [],
 			"061" => [],
+			"061_var" => [],
 		), 
 		"NDVI" => Dict{String, Vector{Union{Missing, Float32}}}(
 			"005" => [],
@@ -168,13 +165,13 @@ begin
 		
 		i == length(chart_order_pres) ? xlabel = L"Year" : xlabel = ""
 		
-		chart_order_pres[i] in ["LST_Day"] ? title = "Day Land Surface Temp: Variation from 2000-2005 Mean" : title = uppercase(dataset) * ": Variation from 2000-2005 Mean"
+		chart_order_pres[i] in ["LST_Day"] ? title = "Day Land Surface Temp: Variance from 2000-2005 Mean" : title = uppercase(dataset) * ": Variation from 2000-2005 Mean"
 		
-		ylabel = ""
+		ylabel = L"%$(dataset)\; year^{-1}"
 		if dataset == "LST"
 			ylabel = L"°C"
 		elseif dataset == "NDVI"
-			ylabel = L"KgC\; m^2\; year^{-1}"
+			# ylabel = L"KgC\; m^2\; year^{-1}"
 		end
 		
 		for ver in versions
@@ -205,48 +202,33 @@ begin
 		# Gray box denotes average of those years
 		poly!(ax, Point2f[(0, -100), (2005.0, -100), (2005.0, 100), (0, 100)], color=RGBA(0.1, 0.1, 0.1, 0.1))
 
-		for ver in versions
-			lines!(ax, line_years, chart_data[dataset][ver * "_var"][1:length(line_years)], label="v" * ver[2:3] * "μ", linewidth=linewidth, alpha=0.5)
-		end
-		
+		# Create dataframe for MLJ
 		df = DataFrame(
 			years = convert.(Float32, years),
-			v05 = chart_data[dataset]["005_var"],
-			v06 = chart_data[dataset]["006_var"],
-			v61 = chart_data[dataset]["061_var"],
+			v005 = chart_data[dataset]["005_var"],
+			v006 = chart_data[dataset]["006_var"],
+			v061 = chart_data[dataset]["061_var"],
 		)
-		
-		# df05 = DataFrame(
-		# 	years = convert.(Float32, range(2000, 2015)),
-		# 	v05 = chart_data[dataset]["005"] .- mean005
-		# )
 
-		# ts_machine_05 = machine(ts_regr, df05[:, [:years]], df05.v05)
-		# fit!(ts_machine_05, verbosity=0)
-		# regr05 = predict_mode(ts_machine_05)
-		# while length(regr05) < 21
-		# 	append!(regr05, last(regr05) + regr05[2] - regr05[1])
-		# end
+		df = df[1:length(line_years), :]
 
-		ts_machine_05 = machine(ts_regr, dropmissing(df[:, [:years, :v05]])[:, [:years]], dropmissing(df[:, [:years, :v05]])[:, [:v05]])
-		fit!(ts_machine_05, verbosity=0)
-		regr05 = predict_mode(ts_machine_05)
-		
-		ts_machine_06 = machine(ts_regr, df[:, [:years]], df.v06)
-		fit!(ts_machine_06, verbosity=0)
-		regr06 = predict_mode(ts_machine_06)
-	
-		ts_machine_61 = machine(ts_regr, df[:, [:years]], df.v61)
-		fit!(ts_machine_61, verbosity=0)
-		regr61 = predict_mode(ts_machine_61)
+		for (iv, ver) in enumerate(versions)
+			lines!(ax, line_years, chart_data[dataset][ver * "_var"][1:length(line_years)], label="v" * ver[2:3] * "μ", linewidth=linewidth, alpha=0.5, color=colormap[iv])
 
-		# lines!(ax, df.years, round.(regr05, digits=5), label="v05 lm", linewidth=reglinewidth, linestyle=linestyle, color=colormap[1])
-		lines!(ax, df.years, round.(regr06, digits=5), label="v06 lm", linewidth=reglinewidth, linestyle=linestyle, color=colormap[2])
-		lines!(ax, df.years, round.(regr61, digits=5), label="v61 lm", linewidth=reglinewidth, linestyle=linestyle, color=colormap[3])
-		# text!(ax, df.years[begin], round.(regr05, digits=5)[begin], text="V5", color=colormap[1], fontsize=versionlabelsize,
-		# 	align=(:center,:top))
-		text!(ax, df.years[11], round.(regr06, digits=5)[11], text="V6", color=colormap[2], fontsize=versionlabelsize, align=(:center,:bottom))
-		text!(ax, df.years[end], round.(regr61, digits=5)[end], text="V6.1", color=colormap[3], fontsize=versionlabelsize, align=(:right,:top))
+			# Train data for sens slope
+			ts_machine = machine(ts_regr, dropmissing(df[:, Cols("years", "v"*ver)])[:, [:years]], dropmissing(df[:, Cols("years", "v"*ver)])[:, Cols("v"*ver)])
+			fit!(ts_machine, verbosity=0)
+			regr = predict_mode(ts_machine)
+
+			# Draw regressor lines
+			lines!(ax, df.years[1:length(regr)], round.(regr, digits=5), label="v"*ver[2:3]*"lm", linewidth=reglinewidth, linestyle=linestyle, color=colormap[iv])
+
+			# Draw labels
+			label = replace(ver, "0"=>"")
+			if i == 1
+				text!(ax, 0, 1, text="V"*label, color=colormap[iv], font=:bold, fontsize=versionlabelsize, align=(:left,:top), space=:relative, offset=((iv-1)*120, 0))
+			end
+		end
 
 		row = ceil(i / 2)
 		row = convert(Int, row)
@@ -256,12 +238,12 @@ begin
 		# v05_p = string(round(mk_original_test(df05.v05).p, digits=3))
 		# v05_τ = string(round(mk_original_test(df05.v05).τ, digits=2))
 		# v05_test = LineElement(linewidth=reglinewidth, linestyle=:dash, color=(colormap[1]))
-		v06_p = string(round(mk_original_test(df.v06).p, digits=3))
-		v06_τ = string(round(mk_original_test(df.v06).τ, digits=2))
-		v06_test = LineElement(linewidth=reglinewidth, linestyle=:dash, color=(colormap[2]))
-		v61_p = string(round(mk_original_test(df.v61).p, digits=3))
-		v61_τ = string(round(mk_original_test(df.v61).τ, digits=2))
-		v61_test = LineElement(linewidth=reglinewidth, linestyle=:dash, color=(colormap[3]))
+		# v06_p = string(round(mk_original_test(df.v06).p, digits=3))
+		# v06_τ = string(round(mk_original_test(df.v06).τ, digits=2))
+		# v06_test = LineElement(linewidth=reglinewidth, linestyle=:dash, color=(colormap[2]))
+		# v61_p = string(round(mk_original_test(df.v61).p, digits=3))
+		# v61_τ = string(round(mk_original_test(df.v61).τ, digits=2))
+		# v61_test = LineElement(linewidth=reglinewidth, linestyle=:dash, color=(colormap[3]))
 
 		# Legend(f_pres[i,2][1,1],
 		# 	[v05_test, v06_test, v61_test],
@@ -295,11 +277,10 @@ begin
 		end
 	end
 	f_pres
-	# record(f_pres, "test_animation.mkv", timestamps; 
-	# 			framerate=framerate) do t
-	# 		year_o[] = t
-	# end
 end
+
+# ╔═╡ 3ffa5b58-f446-46b4-b5ae-3277d0d089e7
+save(@sprintf("./output/%s_%s.png", region_name, line_years[end]), f_pres)
 
 # ╔═╡ 819a06a9-0561-495b-8fe1-c5901082a31c
 function get_valid_areas()
@@ -2465,10 +2446,9 @@ version = "3.5.0+0"
 
 # ╔═╡ Cell order:
 # ╠═8999ecae-84f3-40a1-af18-edc897b3f855
-# ╠═d6add66b-d312-45cf-bec3-b9f539f9174d
 # ╠═3ffa5b58-f446-46b4-b5ae-3277d0d089e7
 # ╠═4d9e14a8-5be8-4095-b7bc-aa648a6d0d96
-# ╠═e0fdb2c0-4cdd-4d93-8355-8ac83bd6a736
+# ╠═d6add66b-d312-45cf-bec3-b9f539f9174d
 # ╠═7cb603db-f12d-4022-96ba-a0ec3d8db383
 # ╠═502767df-89ca-46a0-8300-957780bd5640
 # ╠═178b80c2-4239-4866-b115-82de5e0a3f60

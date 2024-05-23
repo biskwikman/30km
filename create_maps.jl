@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.41
+# v0.19.42
 
 using Markdown
 using InteractiveUtils
@@ -22,15 +22,19 @@ begin
 	using JLD2
 	using Statistics
 	using PlutoUI
+	using Printf
 end
 
 # ╔═╡ 318cbb16-5719-4760-99fe-eefc99c5af0b
 @bind dataset Select(["lai", "ndvi", "evi", "lst_day", "lst_night", "lst"])
 
+# ╔═╡ 6f63b93a-907c-4744-be9c-115af95a5669
+@bind display_years Select([2000:2015, 2000:2020])
+
 # ╔═╡ 7e8bd1a0-011b-46b1-8ba0-cf58d3458876
 begin
 	function load_trend_array()
-		f = jldopen("./Annual_Trend_Data_2.jld2")
+		f = jldopen("./annual_spatial_trend_arrays_2000_"*string(display_years[end])*".jld2")
 		if dataset == "lst"
 			lst_day = f["lst_day"]
 			replace!(lst_day, -9999.0 => missing)
@@ -60,8 +64,9 @@ begin
 	max_mag = sqrt(trend_max * trend_max)
 	min_mag < max_mag ? range_max = max_mag : range_max = min_mag
 	range_min = range_max * -1
-	tickformat = x -> string.(Int.(x)) .* "°"
+	tickformat = Makie.automatic
 	digits = 3
+	ticklabelsize=45
 
 	ticks=[
 		round(range_min, digits=digits, RoundUp),
@@ -72,9 +77,17 @@ begin
 	]
 	if dataset == "lai"
 		colorrange=(-0.04, 0.04)
-		ticks=[colorrange[1], colorrange[1]/2, 0, colorrange[2], colorrange[2]/2]
-		limits=(-0.05, 0.05)
+	elseif dataset == "ndvi"
+		colorrange=(-0.005, 0.005)
+		ticklabelsize = 40
+	elseif dataset == "evi"
+		colorrange=(-0.005, 0.005)
+		ticklabelsize = 35
+	elseif dataset == "lst"
+		colorrange=(-0.2, 0.2)
 	end
+	ticks=[colorrange[1], colorrange[1]/2, 0, colorrange[2], colorrange[2]/2]
+	tickformat = x -> string.(x)
 
 	occursin("lst", dataset) ? colormap = :balance : colormap = :cork
 	colorgradient=cgrad(colormap, 15, categorical=true)
@@ -84,122 +97,79 @@ end
 begin
 	function create_maps(trend_array)
 
-		dataset ∉ ("lst_day", "lst_night") ? colormap_label = L"%$(uppercase(dataset))\; year^{-1}" : colormap_label = L"°C\; year^{-1}"
+		dataset ∉ ("lst_day", "lst_night", "lst") ? colormap_label = L"%$(uppercase(dataset))\; year^{-1}" : colormap_label = L"°C\; year^{-1}"
 		
-		fig = Figure(resolution = (1600, 1200))
-		ticklabelsize=45
+		fig = Figure(resolution = (1400, 1200))
+		
 		colorbarlabelsize=45
 		titlesize=45
 		colspacing=Relative(-0.07)
 		rowspacing=Relative(-0.1)
-	
-		ax1 = GeoAxis(fig[1,1], title="v05: 2000-2015",
-			dest = "+proj=longlat",
-			# xtickformat = tickformat,
-			# ytickformat = tickformat,
-			# xticklabelsize=ticklabelsize,
-			# yticklabelsize=ticklabelsize,
-			xticklabelsvisible=false,
-			yticklabelsvisible=false,
-			xticksvisible=false,
-			yticksvisible=false,
-			limits=((60, 180), (-10, 80)),
-			titlesize=titlesize,
-			# aspect=DataAspect(),
-			xgridvisible=false,
-			ygridvisible=false,
-		)
-		ax2 = GeoAxis(fig[1,2], title="v06: 2000-2020",
-			dest = "+proj=longlat",
-			# xtickformat = tickformat,
-			# ytickformat = tickformat,
-			# xticklabelsize=ticklabelsize,
-			# yticklabelsize=ticklabelsize,
-			xticklabelsvisible=false,
-			yticklabelsvisible=false,
-			xticksvisible=false,
-			yticksvisible=false,
-			titlesize=titlesize,
-			limits=((60, 180), (-10, 80)),
-			# aspect=DataAspect(),
-			xgridvisible=false,
-			ygridvisible=false,
+		hm = undef
 
-		)
-		ax3 = GeoAxis(fig[2,1], title="v6.1: 2000-2020",
-			dest = "+proj=longlat",
-			# xtickformat = tickformat,
-			# ytickformat = tickformat,
-			# xticklabelsize=ticklabelsize,
-			# yticklabelsize=ticklabelsize,
-			xticklabelsvisible=false,
-			yticklabelsvisible=false,
-			xticksvisible=false,
-			yticksvisible=false,
-			titlesize=titlesize,
-			limits=((60, 180), (-10, 80)),
-			# aspect=DataAspect(),
-			xgridvisible=false,
-			ygridvisible=false,
-		)
-	
-		hm1 = heatmap!(ax1, 
-			60..180, -10..80,
-			trend_array[:,:,1]; 
-			colorrange=colorrange, 
-			colormap=colorgradient,
-		)
-		lines!(ax1, GeoMakie.coastlines(), color=:gray)
-		# Box(fig[1, 1], color = (:red, 0.2), strokewidth = 0)
-		hidedecorations!(ax1)
-		
-		hm2 = heatmap!(ax2, 60..180, -10..80, trend_array[:,:,2], 
-			colorrange=colorrange, 
-			colormap=colorgradient,
-		)
-		lines!(ax2, GeoMakie.coastlines(), color=:gray)
-		# Box(fig[2, 1], color = (:red, 0.2), strokewidth = 0)
+		for (i, (ver, ax_loc)) in enumerate(zip(["v5", "v6", "v6.1"], [fig[1,1], fig[1,2], fig[2,1]]))
+			last_year = "2015"
+			if ver != "v5"
+				last_year = string(display_years[end])
+			end
+			ax = GeoAxis(ax_loc, title=ver*": 2000-"*last_year,
+				dest = "+proj=longlat",
+				xticklabelsvisible=false,
+				yticklabelsvisible=false,
+				xticksvisible=false,
+				yticksvisible=false,
+				limits=((60, 180), (-10, 80)),
+				titlesize=titlesize,
+				xgridvisible=false,
+				ygridvisible=false,
+			)
+			hidedecorations!(ax)
 
-		hidedecorations!(ax2)
-		
-		hm3 = heatmap!(ax3, 60..180, -10..80, trend_array[:,:,3],
-			colorrange=colorrange,
-			colormap=colorgradient,
-		)
-		lines!(ax3, GeoMakie.coastlines(), color=:gray)
-		hidedecorations!(ax3)
+			hm = heatmap!(ax, 
+				60..180, -10..80,
+				trend_array[:,:,i]; 
+				colorrange=colorrange, 
+				colormap=colorgradient,
+			)
+			lines!(ax, GeoMakie.coastlines(), color=:gray)
+		end
 
 		println(range_min, " ", digits)
 		
 		Colorbar(
-			fig[2,2], hm1,
+			fig[2,2], hm,
 			tellheight=false,
 			halign=:center, vertical=false,
 			ticklabelsize=ticklabelsize, labelsize=colorbarlabelsize, label=colormap_label,
 			# colormap=colormap,
 			ticks=ticks,
+			tickformat=tickformat,
 			# limits=limits,
 			size=50,
-			width=Relative(3/4)
+			width=Relative(4/5)
 		)
 		
 		Label(fig[0,:], replace(uppercase(dataset), "_"=>" ", "DAY"=>"Day", "NIGHT"=>"Night") * " Interannual Trend", fontsize=50)
 		# colgap!(fig.layout, 1, colspacing)
 		rowgap!(fig.layout, 2, rowspacing)
+		save(@sprintf("./output/%s_map_%s.png", dataset, display_years[end]), fig)
 		return fig
 	end
 	create_maps(trend_array)
 end
 
 # ╔═╡ 57dc2646-e7eb-4561-b2af-f2337bbd06aa
-range_min
+trend_min
+
+# ╔═╡ 2b1f2e04-33a6-44ac-822c-fd73f5c138a4
+display_years[end]
 
 # ╔═╡ 4f4e2f3e-2af6-43fe-a2d7-4d5ca8b0804e
 html"""<style>
 main {
     max-width: 75%;
     margin-left: 1%;
-    margin-right: 2% !important;
+    margin-right: 20% !important;
 }
 """
 
@@ -211,6 +181,7 @@ GeoMakie = "db073c08-6b98-4ee5-b6a4-5efafb3259c6"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
@@ -227,7 +198,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.3"
 manifest_format = "2.0"
-project_hash = "7cbaa88d156daf1900f932ad9aed5eeb5c4c0c0f"
+project_hash = "99b3a59ec3d30c49d0dab15eff6f21d630cecbf9"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1968,10 +1939,12 @@ version = "3.5.0+0"
 
 # ╔═╡ Cell order:
 # ╠═318cbb16-5719-4760-99fe-eefc99c5af0b
+# ╠═6f63b93a-907c-4744-be9c-115af95a5669
 # ╠═52ee4140-3f41-4a19-a08d-fa3386802fc6
 # ╠═79e57fa6-f3e4-4963-bc9d-3f0977c1c357
 # ╠═57dc2646-e7eb-4561-b2af-f2337bbd06aa
 # ╠═7e8bd1a0-011b-46b1-8ba0-cf58d3458876
+# ╠═2b1f2e04-33a6-44ac-822c-fd73f5c138a4
 # ╠═3b024aef-2cb9-4b3a-a178-b85750341029
 # ╠═4f4e2f3e-2af6-43fe-a2d7-4d5ca8b0804e
 # ╟─00000000-0000-0000-0000-000000000001
