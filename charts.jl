@@ -178,7 +178,7 @@ begin
 			# Calculate daily LST
 			chart_data["LST"][ver] = chart_data["LST_Day"][ver] .+ ((chart_data["LST_Night"][ver] .- chart_data["LST_Day"][ver]) ./2)
 
-			# Calculate means for 2000-2006
+			# Calculate means for 2000-2005
 			yearly_means[dataset][ver] = mean(chart_data[dataset][ver][1:6])
 
 			# Convenience
