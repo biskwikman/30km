@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.42
+# v0.19.43
 
 using Markdown
 using InteractiveUtils
@@ -34,6 +34,9 @@ end
 
 # ╔═╡ 8999ecae-84f3-40a1-af18-edc897b3f855
 @bind region_name Select(["East Asia","Southeast Asia","South Asia","Siberia"])
+
+# ╔═╡ 3ffa5b58-f446-46b4-b5ae-3277d0d089e7
+# save(@sprintf("./output/%s_%s.png", region_name, line_years[end]), f_pres)
 
 # ╔═╡ 4d9e14a8-5be8-4095-b7bc-aa648a6d0d96
 begin
@@ -279,9 +282,6 @@ begin
 	f_pres
 end
 
-# ╔═╡ 3ffa5b58-f446-46b4-b5ae-3277d0d089e7
-save(@sprintf("./output/%s_%s.png", region_name, line_years[end]), f_pres)
-
 # ╔═╡ 819a06a9-0561-495b-8fe1-c5901082a31c
 function get_valid_areas()
 	areas = Array{Float32}(undef, (480, 360))
@@ -389,8 +389,8 @@ end
 html"""<style>
 main {
     max-width: 70%;
-    # margin-left: 3%;
-    # margin-right: 3% !important;
+    margin-left: 3%;
+    # margin-right: 3%;
 }
 """
 
@@ -430,7 +430,7 @@ UrlDownload = "~1.0.1"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.10.3"
+julia_version = "1.10.4"
 manifest_format = "2.0"
 project_hash = "c30e858ca92c2e9f23ce43e35594b9683f29cc26"
 
