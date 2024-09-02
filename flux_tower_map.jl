@@ -54,17 +54,31 @@ end
 
 # ╔═╡ 65689726-ddec-414a-b5c7-ba48ae45a6fb
 begin
-	colormap=["#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#ffff33", "#a65628", "#f781bf", "#999999"]
-	colorgrad=cgrad(colormap, categorical=true)
-	colorgrad=Makie.Categorical(colorgrad)
+	colormap_lc=["#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#ffff33", "#a65628", "#f781bf", "#999999"]
+	colorgrad_lc=cgrad(colormap_lc, categorical=true)
+	colorgrad_lc=Makie.Categorical(colorgrad_lc)
 
-	leg_elems = [
-		MarkerElement(color=colormap[i], marker=:rect, markersize=15, markerstrokewidth=1)
-		for i in 1:length(colormap)
+	kwargs_ec = (; color=:transparent, marker=:circle, markersize=15, markerstrokecolor=RGBAf(0,0,0,0.7), markerstrokewidth=1.3)
+
+	leg_elems_lc = [
+		MarkerElement(color=colormap_lc[i], marker=:rect, markersize=15, markerstrokewidth=1)
+		for i in 1:length(colormap_lc)
 	]
 
-	leg_lables = [key[i][2] for i in 1:length(key)]
-		
+	push!(leg_elems_lc, MarkerElement(; kwargs_ec...))
+
+	leg_lables_lc = [key[i][2] for i in 1:length(key)]
+	push!(leg_lables_lc, "EC_Towers")
+
+	colormap_reg = reduce(vcat,[Makie.wong_colors()[1:4], "#999999"])
+	
+	leg_elems_reg = [
+		MarkerElement(color=colormap_reg[i], marker=:rect, markersize=15, markerstrokewidth=1)
+		for i in 1:length(colormap_reg)]
+	
+	push!(leg_elems_reg, MarkerElement(; kwargs_ec...))
+	
+	leg_lables_reg = ["Siberia", "East Asia", "South Asia", "Southeast Asia", "N/A", "EC Towers"]
 end
 
 # ╔═╡ ce14d3f5-fd90-46e4-8e22-eae3bdca8898
@@ -73,7 +87,7 @@ begin
 	read!("./AsiaMIP_qdeg_gosat2.byt", regions_array)
 	regions_array = convert(Array{Union{UInt8, Missing}}, regions_array)
 	reverse!(regions_array; dims=2)
-	replace!(regions_array, 2=>1, 3=>1, 4=>1, 5=>2, 6=>3, 7=>4, 8=>5, 9=>5, 0=>missing)
+	replace!(regions_array, 2=>1, 3=>1, 4=>1, 6=>2, 7=>3, 8=>4, 9=>4, 0=>missing)
 
 	heatmap(regions_array)
 end
@@ -81,36 +95,46 @@ end
 # ╔═╡ 67fe9541-eee3-4ac3-91e9-19eee19a2594
 begin
 	f = Figure(size=(800, 400))
+
+	tickformat="{:.0f}°"
+	
 	ax_lc = Axis(f[1,1],
-		# dest="+proj=longlat",
 		aspect=DataAspect(),
 		yticks=[-10,0,20,40,60,80],
 		limits=((60, 180), (-10, 80)),
-		# tellwidth=true,
+		xtickformat=tickformat,
+		ytickformat=tickformat,
+		title="IGBP Landcover",
 	)
 	
-	hm = heatmap!(ax_lc, 60..180, -10..80, lt_array, colormap=colorgrad)
+	hm = heatmap!(ax_lc, 60..180, -10..80, lt_array, colormap=colorgrad_lc)
 	
 	scatter!(ax_lc, df[:, :LON], df[:, :LAT], color=:transparent, markersize=15, strokecolor=RGBAf(0,0,0,0.7), strokewidth=1.3)
 
+	leg_kwargs=(; orientation=:horizontal,nbanks=2,rowgap=-8,colgap=-2,patchlabelgap=0)
+	
 	Legend(f[2,1],
-		leg_elems,leg_lables,
-		orientation=:horizontal,
-		nbanks=2,
-		rowgap=-8,
-		colgap=-2,
-		patchlabelgap=0,
-		# tellwidth=true,
+		leg_elems_lc,leg_lables_lc;
+		leg_kwargs...,
 	)
 
 	ax_reg = Axis(f[1,2],
 		aspect=DataAspect(),
 		yticks=[-10,0,20,40,60,80],
 		limits=((60, 180), (-10, 80)),
-		yticklabelsvisible=false
+		xtickformat=tickformat,
+		ytickformat=tickformat,
+		title="Subcontinental Regions"
 	)
 
-	heatmap!(ax_reg, 60..180, -10..80, regions_array)
+	heatmap!(ax_reg, 60..180, -10..80, regions_array, colormap=colormap_reg)
+	
+	scatter!(ax_reg, df[:, :LON], df[:, :LAT], color=:transparent, markersize=15, strokecolor=RGBAf(0,0,0,0.7), strokewidth=1.3)
+
+	Legend(f[2,2],
+		leg_elems_reg, leg_lables_reg;
+		leg_kwargs...,
+	)
 	
 	f
 end
@@ -138,7 +162,7 @@ Makie = "~0.21.9"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.10.4"
+julia_version = "1.10.5"
 manifest_format = "2.0"
 project_hash = "91117bee78b501c25260df44108fc68c99d6eb64"
 
@@ -1681,7 +1705,7 @@ version = "0.15.2+0"
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.8.0+1"
+version = "5.11.0+0"
 
 [[deps.libfdk_aac_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
