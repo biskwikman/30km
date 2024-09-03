@@ -97,13 +97,23 @@ begin
 	f = Figure(size=(800, 400))
 
 	tickformat="{:.0f}°"
-	
-	ax_lc = Axis(f[1,1],
+
+	ax_kwargs = (
 		aspect=DataAspect(),
 		yticks=[-10,0,20,40,60,80],
 		limits=((60, 180), (-10, 80)),
 		xtickformat=tickformat,
 		ytickformat=tickformat,
+		yticklabelpad=2,
+		xticklabelpad=2,
+		xticksvisible=false,
+		yticksvisible=false,
+		xgridcolor=:gray,
+		ygridcolor=:gray,
+	)
+	
+	ax_lc = Axis(f[1,1];
+		ax_kwargs...,
 		title="IGBP Landcover",
 	)
 	
@@ -118,12 +128,8 @@ begin
 		leg_kwargs...,
 	)
 
-	ax_reg = Axis(f[1,2],
-		aspect=DataAspect(),
-		yticks=[-10,0,20,40,60,80],
-		limits=((60, 180), (-10, 80)),
-		xtickformat=tickformat,
-		ytickformat=tickformat,
+	ax_reg = Axis(f[1,2];
+		ax_kwargs...,
 		title="Subcontinental Regions"
 	)
 
