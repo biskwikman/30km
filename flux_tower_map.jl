@@ -11,11 +11,26 @@ begin
 	using GeoMakie
 	using CSV
 	using DataFrames
+	using DataFramesMeta
 	using GeoJSON
 end
 
 # ╔═╡ 25e38957-09b5-43d2-8d7f-30b033dccbbc
-df = DataFrame(CSV.File("tower_locations.csv"));
+begin
+	df_coords = DataFrame(CSV.File("tower_locations.csv"))
+	df_veg_type = DataFrame(CSV.File("igbp.csv"))
+	df_veg_key = DataFrame(CSV.File("veg_key.csv"))
+	df_towers = @chain df_veg_key begin
+		leftjoin(df_veg_type, on="veg_type"=>"Veg_Type_Code")
+		innerjoin(df_coords, on="site_code"=>"SiteCode")
+	end
+end;
+
+# ╔═╡ 9426d62e-d1e0-40fe-b935-89adb872228c
+@chain df_towers begin
+	groupby("Veg_Type")
+	combine(nrow=>"tower_count")
+end
 
 # ╔═╡ e13a7cb2-f55e-4d77-a678-3e3b59de1859
 key = [1=>"ENF", 2=>"EBF", 3=>"DNF", 4=>"DBF, MF", 5=>"SH", 6=>"SAV", 7=>"GRA", 8=>"CRO", 9=>"Non-vegetation"]
@@ -68,7 +83,7 @@ begin
 	push!(leg_elems_lc, MarkerElement(; kwargs_ec...))
 
 	leg_lables_lc = [key[i][2] for i in 1:length(key)]
-	push!(leg_lables_lc, "EC_Towers")
+	push!(leg_lables_lc, "EC Towers")
 
 	colormap_reg = reduce(vcat,[Makie.wong_colors()[1:4], "#999999"])
 	
@@ -151,6 +166,7 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+DataFramesMeta = "1313f7d8-7da2-5740-9ea0-a2ca25f37964"
 GeoJSON = "61d90e0f-e114-555e-ac52-39dfb47a3ef9"
 GeoMakie = "db073c08-6b98-4ee5-b6a4-5efafb3259c6"
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
@@ -159,6 +175,7 @@ Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 CSV = "~0.10.14"
 CairoMakie = "~0.12.9"
 DataFrames = "~1.6.1"
+DataFramesMeta = "~0.14.1"
 GeoJSON = "~0.8.1"
 GeoMakie = "~0.7.3"
 Makie = "~0.21.9"
@@ -170,7 +187,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.5"
 manifest_format = "2.0"
-project_hash = "91117bee78b501c25260df44108fc68c99d6eb64"
+project_hash = "1e67b2b4f8ebcef68d998a4032d8bc802eae4667"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -287,6 +304,11 @@ git-tree-sha1 = "a2f1c8c668c8e3cb4cca4e57a8efdb09067bb3fd"
 uuid = "83423d85-b0ee-5818-9007-b63ccbeb887a"
 version = "1.18.0+2"
 
+[[deps.Chain]]
+git-tree-sha1 = "8c4920235f6c561e401dfe569beb8b924adad003"
+uuid = "8be319e6-bccf-4806-a6f7-6fae938471bc"
+version = "0.5.0"
+
 [[deps.ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra"]
 git-tree-sha1 = "71acdbf594aab5bbb2cec89b208c41b4c411e49f"
@@ -389,6 +411,12 @@ deps = ["Compat", "DataAPI", "DataStructures", "Future", "InlineStrings", "Inver
 git-tree-sha1 = "04c738083f29f86e62c8afc341f0967d8717bdb8"
 uuid = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 version = "1.6.1"
+
+[[deps.DataFramesMeta]]
+deps = ["Chain", "DataFrames", "MacroTools", "OrderedCollections", "Reexport"]
+git-tree-sha1 = "6970958074cd09727b9200685b8631b034c0eb16"
+uuid = "1313f7d8-7da2-5740-9ea0-a2ca25f37964"
+version = "0.14.1"
 
 [[deps.DataStructures]]
 deps = ["Compat", "InteractiveUtils", "OrderedCollections"]
@@ -1769,6 +1797,7 @@ version = "3.6.0+0"
 # ╔═╡ Cell order:
 # ╠═43846d4c-1be5-11ef-2210-6df8b2fe995a
 # ╠═25e38957-09b5-43d2-8d7f-30b033dccbbc
+# ╠═9426d62e-d1e0-40fe-b935-89adb872228c
 # ╠═e13a7cb2-f55e-4d77-a678-3e3b59de1859
 # ╠═ba538a49-1037-4150-a213-cdafc3f27553
 # ╠═67fe9541-eee3-4ac3-91e9-19eee19a2594
