@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.43
+# v0.19.46
 
 using Markdown
 using InteractiveUtils
@@ -388,9 +388,9 @@ end
 # ╔═╡ 2b5ee6e5-2c7e-4391-9132-5eb0a3cdf02e
 html"""<style>
 main {
-    max-width: 70%;
-    margin-left: 3%;
-    # margin-right: 3%;
+    max-width: 75%;
+    margin-left: 1%;
+    margin-right: 20% !important;
 }
 """
 
@@ -430,7 +430,7 @@ UrlDownload = "~1.0.1"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.10.4"
+julia_version = "1.10.5"
 manifest_format = "2.0"
 project_hash = "c30e858ca92c2e9f23ce43e35594b9683f29cc26"
 
@@ -2389,7 +2389,7 @@ version = "0.15.1+0"
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.8.0+1"
+version = "5.11.0+0"
 
 [[deps.libfdk_aac_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
