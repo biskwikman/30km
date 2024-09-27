@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.42
+# v0.19.46
 
 using Markdown
 using InteractiveUtils
@@ -18,14 +18,14 @@ begin
 	using Base.Threads
 end
 
+# ╔═╡ 62dade53-c8ab-4f31-b8c5-83ca3b88ba28
+years = 2000:2015
+
 # ╔═╡ 0686d932-bd34-4e21-873f-2fbdca2c0c6a
 # count(i -> i == -9998.0, skipmissing(trend_array))
 
 # ╔═╡ 23e5668f-47e7-43ce-a439-7d58871c1f2f
 length(2000:2015)
-
-# ╔═╡ 62dade53-c8ab-4f31-b8c5-83ca3b88ba28
-years = 2000:2015
 
 # ╔═╡ cba30637-41d6-4722-b437-096bbf1e6145
 begin
