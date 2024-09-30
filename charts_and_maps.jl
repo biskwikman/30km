@@ -213,6 +213,9 @@ begin
 	chart_data_df = Dict()
 end
 
+# ╔═╡ 2c8fc347-77a8-407c-a9cf-85dc8cc2cf46
+chart_data_df
+
 # ╔═╡ 84fdafd2-def9-4c7b-b995-cff16000708e
 # Create chart data
 begin
@@ -268,51 +271,55 @@ begin
 			fontsize=20)
 	end
 	
-	titles = ["South Asia" "Siberia"; 
-		"Southeast Asia" "East Asia"]
+	titles = ["Siberia" "South Asia"; 
+			"Southeast Asia" "East Asia"]
 	
 	axs = [
 		Axis(f[y,x],
 		title=titles[y,x],
 		aspect=1,
 		ylabel=modis_var == "ndvi" ? "NDVI" : "°C",
+		xlabel="Year",
 		limits=limits,
 		xticks=2000:3:2015,
 		xticklabelsvisible=(y == 1 ? false : true),
 		yticklabelsvisible=(x == 2 ? false : true),
 		ylabelvisible=(x == 2 ? false : true),
+		xlabelvisible=(y == 1 ? false : true),
 		titlesize=20,
 		yticklabelsize=16,
 		xticklabelsize=16,
 		yticklabelpad=0,
-	) for y in 1:2 for x in 1:2]
+	) for x in 1:2 for y in 1:2]
 
 	for (i_r, region) in enumerate(chart_data_df)
+		axis_cartesian_idx = findall(x->x == region[1], titles)
+		axis_idx = LinearIndices(titles)[axis_cartesian_idx][1]
 		for (i_v, ver) in enumerate(vers)
-			lines = lines!(axs[i_r], chart_years, chart_data_df[region[1]][:, ver], color=colormap[i_v], linewidth=linewidth, alpha=0.7)
+			lines = lines!(axs[axis_idx], chart_years, chart_data_df[region[1]][:, ver], color=colormap[i_v], linewidth=linewidth, alpha=0.7)
 		end
 	end
 
 	for (i_r, region) in enumerate(chart_data_df)
+		axis_cartesian_idx = findall(x->x == region[1], titles)
+		axis_idx = LinearIndices(titles)[axis_cartesian_idx][1]
+		print(axis_idx)
 		for (i_v, ver) in enumerate(vers)
 			ts_machine = Any
 			if ver == "005"
-				ts_machine = machine(ts_regr, chart_data_df[region[1]][1:16, Cols("years")], chart_data_df[region[1]][1:16, Cols(ver)])
+				ts_machine = machine(ts_regr, chart_data_df[region[1]][1:16, Cols("years")], chart_data_df[region[1]][1:16, ver], scitype_check_level=0)
 			else
-				ts_machine = machine(ts_regr, chart_data_df[region[1]][:, Cols("years")], chart_data_df[region[1]][:, Cols(ver)])
+				ts_machine = machine(ts_regr, chart_data_df[region[1]][:, Cols("years")], chart_data_df[region[1]][:, ver], scitype_check_level=0)
 			end
-			
-			
 			fit!(ts_machine, verbosity=0)
 			regr = predict_mode(ts_machine)
-	
 			if ver == "005"
 				slope = regr[2]-regr[1]
 				while length(regr) < length(chart_years)
 					push!(regr, last(regr) + slope)
 				end
 			end
-			lines!(axs[i_r], chart_years, round.(regr, digits=5), color=colormap[i_v], linewidth=reglinewidth, linestyle=linestyle)
+			lines!(axs[axis_idx], chart_years, round.(regr, digits=5), color=colormap[i_v], linewidth=reglinewidth, linestyle=linestyle)
 		end
 	end
 	resize_to_layout!(f)
@@ -2640,6 +2647,7 @@ version = "3.5.0+0"
 # ╔═╡ Cell order:
 # ╠═1e0bbd79-5109-493d-95ce-3ce812ac62ce
 # ╠═12e81da2-4501-41ad-9dd9-a259d613e9c2
+# ╠═2c8fc347-77a8-407c-a9cf-85dc8cc2cf46
 # ╠═aa888211-b742-465a-afdf-2eb2e9db5a22
 # ╠═002ac781-b697-41b2-a0fa-fc4762a3f382
 # ╠═9ee12b9a-7bd5-4a1a-9c0d-d16a9f3fd380
