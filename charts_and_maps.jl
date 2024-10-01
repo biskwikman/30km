@@ -34,6 +34,23 @@ end
 # ╔═╡ 12e81da2-4501-41ad-9dd9-a259d613e9c2
 @bind modis_var Select(["ndvi", "lai", "fpar", "lst_mean","evi",])
 
+# ╔═╡ f6045d96-8f67-4862-9d86-cf3cc62394b1
+begin
+	legendlabelsize = 40
+	legendtitlesize = 40
+	legendwidth = 150
+	versionlabelsize = 75
+	regionnamefontsize = 70
+	axistitlesize = 25
+	ticklabelsize = 50
+	linewidth = 3
+	reglinewidth = 4
+	yearformat = xs -> ["'$(SubString(string(x), 3,4))" for x in xs]
+	xticks = 2000:2:2020
+	linestyle = Linestyle([0.5, 1.0, 1.8, 3.0])
+	nothing
+end
+
 # ╔═╡ 002ac781-b697-41b2-a0fa-fc4762a3f382
 # Set metadata
 begin
@@ -55,19 +72,6 @@ end
 begin
 	vers = ["005", "006", "061"]
 	colormap = Makie.wong_colors()
-	legendlabelsize = 40
-	legendtitlesize = 40
-	legendwidth = 150
-	versionlabelsize = 75
-	regionnamefontsize = 70
-	axistitlesize = 25
-	ticklabelsize = 50
-	linewidth = 3
-	reglinewidth = 3
-	yearformat = xs -> ["'$(SubString(string(x), 3,4))" for x in xs]
-	xticks = 2000:2:2020
-	linestyle = Linestyle([0.5, 1.0, 1.8, 3.0])
-	nothing
 end
 
 # ╔═╡ 39ae56f5-5f34-4378-8777-58dfe5fb4316
@@ -213,9 +217,6 @@ begin
 	chart_data_df = Dict()
 end
 
-# ╔═╡ 2c8fc347-77a8-407c-a9cf-85dc8cc2cf46
-chart_data_df
-
 # ╔═╡ 84fdafd2-def9-4c7b-b995-cff16000708e
 # Create chart data
 begin
@@ -255,7 +256,7 @@ begin
 		limits = (nothing, nothing, -1, 1)
 	end
 	
-	f = Figure(size=(600, 600))
+	f = Figure(size=(650, 650))
 	Label(
 		f[0,1:2],
 		"",
@@ -266,9 +267,10 @@ begin
 
 	for (i, v) in enumerate(["5", "6", "6.1"])
 		Label(f[1,1], "C$v", halign=:left, valign=:top,
-			padding=(15,4,4,4+((i-1)*17)),
+			padding=(15,4,4,4+((i-1)*18)),
 			color=colormap[i], tellwidth=false, tellheight=false,
-			fontsize=20)
+			fontsize=20,
+		)
 	end
 	
 	titles = ["Siberia" "South Asia"; 
@@ -281,7 +283,7 @@ begin
 		ylabel=modis_var == "ndvi" ? "NDVI" : "°C",
 		xlabel="Year",
 		limits=limits,
-		xticks=2000:3:2015,
+		xticks=2000:5:2015,
 		xticklabelsvisible=(y == 1 ? false : true),
 		yticklabelsvisible=(x == 2 ? false : true),
 		ylabelvisible=(x == 2 ? false : true),
@@ -296,14 +298,13 @@ begin
 		axis_cartesian_idx = findall(x->x == region[1], titles)
 		axis_idx = LinearIndices(titles)[axis_cartesian_idx][1]
 		for (i_v, ver) in enumerate(vers)
-			lines = lines!(axs[axis_idx], chart_years, chart_data_df[region[1]][:, ver], color=colormap[i_v], linewidth=linewidth, alpha=0.7)
+			lines = lines!(axs[axis_idx], chart_years, chart_data_df[region[1]][:, ver], color=colormap[i_v], linewidth=linewidth, alpha=0.5)
 		end
 	end
 
 	for (i_r, region) in enumerate(chart_data_df)
 		axis_cartesian_idx = findall(x->x == region[1], titles)
 		axis_idx = LinearIndices(titles)[axis_cartesian_idx][1]
-		print(axis_idx)
 		for (i_v, ver) in enumerate(vers)
 			ts_machine = Any
 			if ver == "005"
@@ -2647,7 +2648,7 @@ version = "3.5.0+0"
 # ╔═╡ Cell order:
 # ╠═1e0bbd79-5109-493d-95ce-3ce812ac62ce
 # ╠═12e81da2-4501-41ad-9dd9-a259d613e9c2
-# ╠═2c8fc347-77a8-407c-a9cf-85dc8cc2cf46
+# ╠═f6045d96-8f67-4862-9d86-cf3cc62394b1
 # ╠═aa888211-b742-465a-afdf-2eb2e9db5a22
 # ╠═002ac781-b697-41b2-a0fa-fc4762a3f382
 # ╠═9ee12b9a-7bd5-4a1a-9c0d-d16a9f3fd380
