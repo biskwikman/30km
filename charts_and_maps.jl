@@ -217,6 +217,9 @@ begin
 	chart_data_df = Dict()
 end
 
+# ╔═╡ 0d30cd7b-553c-48eb-b36d-6f5b8d39284c
+chart_data_df
+
 # ╔═╡ 84fdafd2-def9-4c7b-b995-cff16000708e
 # Create chart data
 begin
@@ -2649,6 +2652,7 @@ version = "3.5.0+0"
 # ╠═1e0bbd79-5109-493d-95ce-3ce812ac62ce
 # ╠═12e81da2-4501-41ad-9dd9-a259d613e9c2
 # ╠═f6045d96-8f67-4862-9d86-cf3cc62394b1
+# ╠═0d30cd7b-553c-48eb-b36d-6f5b8d39284c
 # ╠═aa888211-b742-465a-afdf-2eb2e9db5a22
 # ╠═002ac781-b697-41b2-a0fa-fc4762a3f382
 # ╠═9ee12b9a-7bd5-4a1a-9c0d-d16a9f3fd380
