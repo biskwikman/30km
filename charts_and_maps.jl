@@ -48,6 +48,12 @@ begin
 	yearformat = xs -> ["'$(SubString(string(x), 3,4))" for x in xs]
 	xticks = 2000:2:2020
 	linestyle = Linestyle([0.5, 1.0, 1.8, 3.0])
+	limits = (nothing, nothing, nothing, nothing)
+	if modis_var == "ndvi"
+		limits = (nothing, nothing, -0.025, 0.045)
+	elseif modis_var == "lst_mean"
+		limits = (nothing, nothing, -1, 1)
+	end
 	nothing
 end
 
@@ -251,14 +257,7 @@ end
 begin
 	# need ds for cell order reasons
 	ds
-	# modis product based variables
-	limits = (nothing, nothing, nothing, nothing)
-	if modis_var == "ndvi"
-		limits = (nothing, nothing, -0.025, 0.045)
-	elseif modis_var == "lst_mean"
-		limits = (nothing, nothing, -1, 1)
-	end
-	
+
 	f = Figure(size=(650, 650))
 	Label(
 		f[0,1:2],
